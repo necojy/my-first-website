@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+import requests
+from bs4 import BeautifulSoup
 
 app = FastAPI()
 
@@ -11,20 +12,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 定義前端傳過來的資料格式
-class InvoiceData(BaseModel):
-    invoice_number: str
-
-# 建立一個 POST 路由來接收資料
-@app.post("/api/process_invoice")
-def process_invoice(data: InvoiceData):
-    number = data.invoice_number
+# 建立一個新的爬蟲測試 API
+@app.get("/api/scrape_test")
+def scrape_website():
+    # 1. 目標網址 (這裡以一個簡單的範例網站為例)
+    target_url = "https://example.com/"
     
-    # 這裡可以放入你深入的 Python 邏輯（例如爬蟲、演算法運算）
-    # 目前我們先做簡單的字串長度與格式檢查示範
-    if len(number) == 10:
-        result_message = f"成功接收！發票號碼 {number} 格式正確。正在啟動後端查詢程序..."
-    else:
-        result_message = f"錯誤：發票號碼 {number} 長度不符，請重新輸入。"
+    try:
+        # 2. 發送請求去抓取網頁
+        response = requests.get(target_url, verify=False)
+        response.encoding = 'utf-8' # 確保中文不會變成亂碼
         
-    return {"message": result_message}
+        # 3. 使用 BeautifulSoup 解析網頁原始碼
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # 4. 抓取網頁中的 <h1> 標籤文字
+        title = soup.find("h1").text
+        
+        return {"message": "爬蟲成功！", "scraped_title": title}
+        
+    except Exception as e:
+        return {"message": "爬蟲失敗", "error": str(e)}
