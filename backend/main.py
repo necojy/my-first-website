@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import requests
-from bs4 import BeautifulSoup
+# 引入 Selenium 相關套件
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
+import time
 
 app = FastAPI()
 
@@ -12,24 +16,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 建立一個新的爬蟲測試 API
-@app.get("/api/scrape_test")
-def scrape_website():
-    # 1. 目標網址 (這裡以一個簡單的範例網站為例)
-    target_url = "https://example.com/"
+@app.get("/api/open_browser")
+def test_browser():
+    # 1. 設定瀏覽器的啟動選項
+    chrome_options = Options()
     
+    # 【關鍵設定】：如果要部署到 Render，必須把下面這行取消註解（讓它變成無頭模式）
+    # chrome_options.add_argument("--headless") 
+    
+    # 為了避免在某些環境下報錯，加入以下安全參數
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
     try:
-        # 2. 發送請求去抓取網頁
-        response = requests.get(target_url, verify=False)
-        response.encoding = 'utf-8' # 確保中文不會變成亂碼
+        # 2. 自動下載驅動程式並啟動 Google Chrome
+        service = Service(ChromeDriverManager().install())
+        driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        # 3. 使用 BeautifulSoup 解析網頁原始碼
-        soup = BeautifulSoup(response.text, "html.parser")
+        # 3. 命令瀏覽器前往指定網址 (我們去一個有名的測試網站)
+        driver.get("https://www.youtube.com/")
         
-        # 4. 抓取網頁中的 <h1> 標籤文字
-        title = soup.find("h1").text
+        # 為了讓你能在本地端看清楚它真的有打開，我們讓程式刻意暫停 3 秒鐘
+        time.sleep(3) 
         
-        return {"message": "爬蟲成功！", "scraped_title": title}
+        # 4. 抓取網頁的標題文字
+        page_title = driver.title
+        
+        # 5. 任務完成，關閉瀏覽器 (這步非常重要，不然你的電腦會累積一堆沒關的視窗)
+        driver.quit()
+        
+        return {"message": "成功打開瀏覽器並執行完畢！", "網頁標題是": page_title}
         
     except Exception as e:
-        return {"message": "爬蟲失敗", "error": str(e)}
+        return {"message": "啟動瀏覽器失敗", "error": str(e)}
