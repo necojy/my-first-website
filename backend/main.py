@@ -22,7 +22,7 @@ def test_browser():
     chrome_options = Options()
     
     # 【關鍵設定】：如果要部署到 Render，必須把下面這行取消註解（讓它變成無頭模式）
-    # chrome_options.add_argument("--headless") 
+    chrome_options.add_argument("--headless") 
     
     # 為了避免在某些環境下報錯，加入以下安全參數
     chrome_options.add_argument("--no-sandbox")
