@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>前後端連線測試</title>
+</head>
+<body>
+    <h1>測試呼叫後端</h1>
+    <button onclick="fetchData()">點擊獲取資料</button>
+    <p id="result" style="color: blue;"></p>
+
+    <script>
+        async function fetchData() {
+            // 注意：部署後，這裡要換成 Render 給你的後端網址
+            const backendUrl = "http://localhost:8000/api/data"; 
+            
+            try {
+                const response = await fetch(backendUrl);
+                const data = await response.json();
+                document.getElementById('result').innerText = data.message;
+            } catch (error) {
+                document.getElementById('result').innerText = "連線失敗";
+            }
+        }
+    </script>
+</body>
+</html>
