@@ -2,38 +2,35 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>進階應用：資料傳輸測試</title>
+    <title>雲端機器人測試</title>
 </head>
 <body>
-    <h1>發票系統後端運算測試</h1>
+    <h1>雲端隱形機器人：抓取 YouTube 標題</h1>
     
-    <input type="text" id="invoiceInput" placeholder="請輸入10碼發票號碼">
-    <button onclick="sendData()">送出給後端處理</button>
+    <button onclick="sendData()">呼叫機器人出動！</button>
     
     <p id="result" style="color: blue; font-weight: bold;"></p>
 
     <script>
         async function sendData() {
-            // 記得替換成你的 Render 網址，注意後面的路徑改成了 /api/process_invoice
-            const backendUrl = "https://my-first-website-4vhe.onrender.com/api/scrape_test";
-            // 取得輸入框的值
-            const inputValue = document.getElementById('invoiceInput').value;
+            // 1. 正確的 Render 網址
+            const backendUrl = "https://my-first-website-1-4ew9.onrender.com/api/open_browser";
+            
+            // 【貼心設計】因為雲端開瀏覽器需要幾秒鐘，先在畫面顯示等待文字
+            document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 5~10 秒...";
             
             try {
-                // 發送 POST 請求
-                const response = await fetch(backendUrl, {
-                    method: 'POST', // 指定為 POST 傳輸
-                    headers: {
-                        'Content-Type': 'application/json' // 告訴後端我們傳的是 JSON
-                    },
-                    // 將資料打包成字串送出
-                    body: JSON.stringify({ invoice_number: inputValue }) 
-                });
+                // 2. 發送最單純的 GET 請求 (把 POST 那些複雜的設定都刪掉)
+                const response = await fetch(backendUrl);
                 
+                // 3. 將抓回來的資料轉換成 JSON 格式
                 const data = await response.json();
-                document.getElementById('result').innerText = data.message;
+                
+                // 4. 資料順利回來了！把 "網頁標題是" 顯示到畫面上
+                document.getElementById('result').innerText = "抓取成功！網頁標題是：" + data['網頁標題是'];
+                
             } catch (error) {
-                document.getElementById('result').innerText = "連線失敗";
+                document.getElementById('result').innerText = "連線失敗，請檢查網址或後端狀態";
             }
         }
     </script>
