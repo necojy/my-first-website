@@ -29,15 +29,16 @@ def test_browser():
     options = uc.ChromeOptions()
     
     # 【本地測試】：先不要用 headless，親眼看它登入
-    options.add_argument("--headless=new") 
+    # options.add_argument("--headless=new") 
     
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu") # 🌟 補上這個：Linux 雲端環境保險參數
     options.add_argument("--window-size=1920,1080")
 
     try:
         # 2. 🌟【關鍵改變】：使用 uc 啟動瀏覽器，它會自動處理驅動程式並抹除機器人指紋！
-        driver = uc.Chrome(options=options)
+        driver = uc.Chrome(options=options, headless=True)          
         
         # 3. 前往屈臣氏登入頁面
         driver.get("https://www.watsons.com.tw/login")
