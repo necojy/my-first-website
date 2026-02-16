@@ -31,7 +31,7 @@ def test_browser():
         service = Service(ChromeDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
         
-        driver.get("https://www.youtube.com/")
+        driver.get("https://www.watsons.com.tw/")
         time.sleep(3) 
         page_title = driver.title
         driver.quit()
