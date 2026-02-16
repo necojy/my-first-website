@@ -34,12 +34,21 @@ def test_browser():
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu") # 🌟 補上這個：Linux 雲端環境保險參數
+
+    # 🌟 新增這兩個：徹底關閉圖形渲染與進階沙盒限制，防止雲端記憶體不足或當機
+    options.add_argument("--disable-setuid-sandbox")
+    options.add_argument("--disable-software-rasterizer")
+
     options.add_argument("--window-size=1920,1080")
 
     try:
-        # 2. 🌟【關鍵改變】：使用 uc 啟動瀏覽器，它會自動處理驅動程式並抹除機器人指紋！
-        driver = uc.Chrome(options=options, headless=True)          
-        
+        # 🌟【關鍵改變】：明確指定 Docker 內的 Chrome 路徑，防止 uc 在雲端迷路！
+        driver = uc.Chrome(
+            options=options, 
+            headless=True,
+            browser_executable_path="/usr/bin/google-chrome" # 👈 直接綁定我們在 Dockerfile 裡裝好的 Chrome
+        ) 
+
         # 3. 前往屈臣氏登入頁面
         driver.get("https://www.watsons.com.tw/login")
         wait = WebDriverWait(driver, 15)
