@@ -20,14 +20,17 @@
             document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 5~10 秒...";
             
             try {
-                // 2. 發送最單純的 GET 請求 (把 POST 那些複雜的設定都刪掉)
                 const response = await fetch(backendUrl);
-                
-                // 3. 將抓回來的資料轉換成 JSON 格式
                 const data = await response.json();
                 
-                // 4. 資料順利回來了！把 "網頁標題是" 顯示到畫面上
-                document.getElementById('result').innerText = "抓取成功！網頁標題是：" + data['網頁標題是'];
+                // 判斷：如果回傳的資料裡面有 "網頁標題是"
+                if (data['網頁標題是']) {
+                    document.getElementById('result').innerText = "抓取成功！網頁標題是：" + data['網頁標題是'];
+                } 
+                // 判斷：如果沒有這個欄位，就把後端回傳的「完整錯誤訊息」印出來看！
+                else {
+                    document.getElementById('result').innerText = "後端回報狀況：" + JSON.stringify(data);
+                }
                 
             } catch (error) {
                 document.getElementById('result').innerText = "連線失敗，請檢查網址或後端狀態";
