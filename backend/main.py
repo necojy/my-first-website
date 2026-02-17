@@ -41,6 +41,11 @@ def test_browser():
     options.add_argument("--blink-settings=imagesEnabled=false") # 不載入圖片省記憶體
     options.add_argument("--window-size=1280,720")
 
+    # 🌟 【最後的終極絕招：強制單一程序，極大化節省 RAM！】
+    options.add_argument("--single-process") # 禁止 Chrome 分裂出多個背景程序
+    options.add_argument("--no-zygote")      # 關閉預先載入機制
+    options.add_argument("--disable-dev-tools") # 關閉開發者工具佔用的記憶體
+
     try:
         # 1. 啟動標準版 Chrome
         service = Service(ChromeDriverManager().install())
