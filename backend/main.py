@@ -29,25 +29,29 @@ def test_browser():
     options = uc.ChromeOptions()
     
     # 【本地測試】：先不要用 headless，親眼看它登入
-    # options.add_argument("--headless=new") 
-    
+    # 1. 既有的基礎保命參數
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu") # 🌟 補上這個：Linux 雲端環境保險參數
-
-    # 🌟 新增這兩個：徹底關閉圖形渲染與進階沙盒限制，防止雲端記憶體不足或當機
+    options.add_argument("--disable-gpu") 
     options.add_argument("--disable-setuid-sandbox")
     options.add_argument("--disable-software-rasterizer")
 
-    options.add_argument("--window-size=1920,1080")
+    # 🌟 2. 【全新加入：極限減肥參數】
+    options.add_argument("--disable-extensions") # 禁用所有擴充功能，極大節省資源
+    options.add_argument("--blink-settings=imagesEnabled=false") # 🚫 終極大絕：禁止載入任何圖片！
+    options.add_argument("--disable-notifications") # 關閉所有通知彈出
+
+    # 🌟 3. 【降低解析度】：從原本的 1080p 降級到 720p，減少繪圖記憶體消耗
+    options.add_argument("--window-size=1280,720")
 
     try:
-        # 🌟【關鍵改變】：明確指定 Docker 內的 Chrome 路徑，防止 uc 在雲端迷路！
+        # 啟動設定保持不變 (加上 version_main=144 可以多一層保險)
         driver = uc.Chrome(
             options=options, 
             headless=True,
-            browser_executable_path="/usr/bin/google-chrome" # 👈 直接綁定我們在 Dockerfile 裡裝好的 Chrome
-        ) 
+            browser_executable_path="/usr/bin/google-chrome",
+            version_main=144 
+        )
 
         # 3. 前往屈臣氏登入頁面
         driver.get("https://www.watsons.com.tw/login")
