@@ -31,7 +31,7 @@ def test_browser():
     options = Options()
     
     # 【本地測試時請把這行加上 # 註解，要上雲端前再打開】
-    options.add_argument("--headless=new") 
+    # options.add_argument("--headless=new") 
     
     # 雲端保命與省記憶體參數 (保留)
     options.add_argument("--no-sandbox")
@@ -77,7 +77,32 @@ def test_browser():
 
         # 點擊後暫停 8 秒等待跳轉
         time.sleep(8) 
+
+        # 🌟 【新功能區塊：進入點數與消費詳情頁面】
+        try:
+            # 步驟 1：鎖定並點擊「我的帳戶」
+            # 我們利用包含 '我的帳戶' 的 text 標籤來精準定位
+            account_btn = wait.until(EC.presence_of_element_located((By.XPATH, "//div[@class='text' and contains(text(), '我的帳戶')]")))
+            driver.execute_script("arguments[0].click();", account_btn)
+            time.sleep(2) # 刻意停頓 2 秒，等待選單動畫彈出
+            
+            # 步驟 2：鎖定並點擊「查看詳情」
+            # 利用 HTML 中的 class 'member-point-balance-link' 來定位
+            details_link = wait.until(EC.presence_of_element_located((By.XPATH, "//div[contains(@class, 'member-point-balance-link')]")))
+            driver.execute_script("arguments[0].click();", details_link)
+            
+            # 點擊後暫停 5 秒等待詳情頁面載入
+            time.sleep(5)
+            
+        except Exception as e:
+            # 如果這一步失敗，我們印出錯誤，但不要讓整個程式當機
+            print(f"點擊帳戶詳情時發生錯誤: {e}")
+
+        # ---------------------------------------------
         
+        time.sleep(3) 
+
+
         current_url = driver.current_url
         page_title = driver.title
         driver.quit()
