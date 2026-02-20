@@ -23,11 +23,20 @@
                 const response = await fetch(backendUrl);
                 const data = await response.json();
                 
-                // 判斷：如果回傳的資料裡面有 "網頁標題是"
-                if (data['網頁標題是']) {
-                    document.getElementById('result').innerText = "抓取成功！網頁標題是：" + data['網頁標題是'];
+                // 🌟 判斷：如果回傳的資料裡面有 "統計結果" (代表抓取成功)
+                if (data['統計結果']) {
+                    // 把陣列資料變成漂亮的 HTML 清單
+                    let htmlContent = `抓取成功！共找到 ${data['資料總筆數']} 筆訂單資料。<br><br>`;
+                    htmlContent += "<ul>";
+                    data['統計結果'].forEach(item => {
+                        htmlContent += `<li style="color: #333; margin-bottom: 5px;">${item}</li>`;
+                    });
+                    htmlContent += "</ul>";
+                    
+                    // 用 innerHTML 替換掉原本的文字，這樣才能顯示排版好的清單
+                    document.getElementById('result').innerHTML = htmlContent;
                 } 
-                // 判斷：如果沒有這個欄位，就把後端回傳的「完整錯誤訊息」印出來看！
+                // 判斷：如果失敗，就把後端回傳的錯誤印出來看
                 else {
                     document.getElementById('result').innerText = "後端回報狀況：" + JSON.stringify(data);
                 }
