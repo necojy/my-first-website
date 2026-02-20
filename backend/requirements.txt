@@ -1,8 +1,5 @@
 fastapi
 uvicorn
-requests
-beautifulsoup4
 selenium
-webdriver-manager
+undetected-chromedriver
 python-dotenv
-selenium-stealth

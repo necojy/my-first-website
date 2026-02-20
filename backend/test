@@ -1,0 +1,90 @@
+# ... (前面的 driver設定 與 登入部分保持不變) ...
+
+        # --- 登入並切換到「門市交易紀錄」後 ---
+        
+        # 🌟 修改 1: 更強大的無限捲動邏輯 (防誤判、防卡住)
+        print("開始強力捲動模式...")
+        
+        last_height = driver.execute_script("return document.body.scrollHeight")
+        retries = 0
+        max_retries = 3  # 給予 3 次重試機會
+        
+        while True:
+            # 1. 為了觸發某些懶加載，先往上捲一點點，再捲到底
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight - 300);")
+            time.sleep(0.5)
+            driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            
+            # 2. 等待載入 (因為圖片多，給稍長一點的時間)
+            time.sleep(3)
+            
+            new_height = driver.execute_script("return document.body.scrollHeight")
+            
+            if new_height == last_height:
+                retries += 1
+                print(f"⚠️ 高度未變化，重試計數: {retries}/{max_retries}")
+                
+                if retries >= max_retries:
+                    print("✅ 確認已到達頁面最底部 (或年份資料已讀完)")
+                    break
+                
+                # 等待久一點再試一次
+                time.sleep(2)
+            else:
+                # 高度有變化，重置計數器
+                retries = 0
+                last_height = new_height
+                print("⏬ 成功載入更多資料...")
+
+        # --- 解析與統計 (根據你提供的完整 HTML 優化) ---
+        print("開始解析 HTML...")
+        page_html = driver.page_source
+        soup = BeautifulSoup(page_html, 'html.parser')
+        
+        # 根據 HTML，每一個訂單區塊是 e2-my-account-order-history-item
+        items = soup.find_all('e2-my-account-order-history-item')
+        
+        raw_data = [] 
+        
+        for item in items:
+            # 1. 抓取訂單頭部資訊 (日期、店名、總金額)
+            data_ul = item.find('ul', class_='desktop-order-data')
+            if data_ul:
+                lis = data_ul.find_all('li')
+                if len(lis) >= 3:
+                    full_date_str = lis[0].text.strip() # 例如: 15-Feb-2026 16:47:48
+                    store_name = lis[1].text.strip()    # 例如: 南投2
+                    amount_str = lis[2].text.strip()    # 例如: $1,300
+                    
+                    # 2. 抓取該訂單下的「所有商品細項」
+                    # HTML 結構: div.order-details -> div.order-detail-product -> div.product-name
+                    products_list = []
+                    details_divs = item.find_all('div', class_='order-details')
+                    
+                    for detail in details_divs:
+                        p_name_div = detail.find('div', class_='product-name')
+                        p_qty_div = detail.find('div', class_='product-quantity')
+                        
+                        if p_name_div:
+                            p_name = p_name_div.text.strip()
+                            # 過濾掉不需要的項目 (看需求)
+                            if "Missing item sales" in p_name or "紙本發票" in p_name:
+                                continue
+                                
+                            qty = p_qty_div.text.strip().replace("數量:", "").strip() if p_qty_div else "1"
+                            products_list.append(f"{p_name} x{qty}")
+
+                    raw_data.append({
+                        "日期": full_date_str,
+                        "店名": store_name,
+                        "金額": amount_str,
+                        "購買商品": products_list  # 這裡增加了商品清單
+                    })
+
+        driver.quit()
+        
+        return {
+            "message": "資料抓取完成！", 
+            "資料總筆數": len(raw_data), 
+            "詳細清單": raw_data
+        }
