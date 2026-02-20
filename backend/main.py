@@ -76,13 +76,15 @@ def test_browser():
         # ====================
         print("切換至門市交易紀錄...")
         try:
+            # 🌟 把 element_to_be_clickable 改成 presence_of_element_located
             store_records_tab = wait.until(
-                EC.element_to_be_clickable(
+                EC.presence_of_element_located(
                     (By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")
                 )
             )
+            # 使用 JS 強制點擊，無視任何遮罩阻擋
             driver.execute_script("arguments[0].click();", store_records_tab)
-            time.sleep(3) 
+            time.sleep(5) # 稍微多等一下，給它時間去撈資料
 
         except TimeoutException:
             return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤"}
