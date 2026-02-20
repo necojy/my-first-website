@@ -1,49 +1,53 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html>
 <head>
     <meta charset="UTF-8">
-    <title>全端連線極簡測試</title>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding-top: 50px; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; }
-        #result { margin-top: 30px; font-size: 20px; font-weight: bold; color: #333; }
-    </style>
+    <title>雲端機器人測試</title>
 </head>
 <body>
-    <h1>Vercel ➡️ Hugging Face 連線測試</h1>
+    <h1>雲端隱形機器人：抓取 YouTube 標題</h1>
     
-    <button onclick="testConnection()">發送測試訊號</button>
+    <button onclick="sendData()">呼叫機器人出動！</button>
     
-    <p id="result">等待測試中...</p>
+    <p id="result" style="color: blue; font-weight: bold;"></p>
 
     <script>
-        async function testConnection() {
-            const resultElement = document.getElementById('result');
-            resultElement.innerText = "連線中，請稍候...";
-            resultElement.style.color = "orange";
+        async function sendData() {
+            // 1. 正確的 Render 網址
+            const backendUrl = "https://necojy-watsons-bot.hf.space/api/open_browser";
             
-            // 你的 Hugging Face 專屬 API 網址 (對應剛剛寫的 python 路由)
-            const backendUrl = "https://necojy-watsons-bot.hf.space/api/test_connection";
-
+            // 【貼心設計】因為雲端開瀏覽器需要幾秒鐘，先在畫面顯示等待文字
+            document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 5~10 秒...";
+            
             try {
-                // 向後端發送請求
                 const response = await fetch(backendUrl);
                 const data = await response.json();
                 
-                // 如果後端回傳 success，印出成功訊息
-                if(data.status === 'success') {
-                    resultElement.innerText = data.message;
-                    resultElement.style.color = "green";
-                } else {
-                    resultElement.innerText = "連線異常：" + JSON.stringify(data);
-                    resultElement.style.color = "red";
+                // 🌟 判斷：如果回傳的資料裡面有 "統計結果" (代表抓取成功)
+                if (data['統計結果']) {
+                    // 把陣列資料變成漂亮的 HTML 清單
+                    let htmlContent = `抓取成功！共找到 ${data['資料總筆數']} 筆訂單資料。<br><br>`;
+                    htmlContent += "<ul>";
+                    data['統計結果'].forEach(item => {
+                        htmlContent += `<li style="color: #333; margin-bottom: 5px;">${item}</li>`;
+                    });
+                    htmlContent += "</ul>";
+                    
+                    // 用 innerHTML 替換掉原本的文字，這樣才能顯示排版好的清單
+                    document.getElementById('result').innerHTML = htmlContent;
+                } 
+                // 判斷：如果失敗，就把後端回傳的錯誤印出來看
+                else {
+                    document.getElementById('result').innerText = "後端回報狀況：" + JSON.stringify(data);
                 }
+                
             } catch (error) {
-                // 如果連網路都沒通，就會跑到這裡
-                resultElement.innerText = "連線完全失敗！請檢查後端 HF 是否正在 Running。錯誤訊息：" + error;
-                resultElement.style.color = "red";
+                document.getElementById('result').innerText = "連線失敗，請檢查網址或後端狀態";
             }
         }
     </script>
 </body>
 </html>
+
+<!-- uvicorn main:app --reload -->
+ <!-- http://localhost:8000/api/open_browser -->
