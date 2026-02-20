@@ -34,6 +34,10 @@ def test_browser():
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
 
+    # 🌟🌟🌟【終極魔法：破解 ERR_HTTP2_PROTOCOL_ERROR】🌟🌟🌟
+    options.add_argument("--disable-http2") # 關閉 HTTP/2，強制降級回傳統 HTTP/1.1
+    options.add_argument("--ignore-certificate-errors") # 忽略憑證警告，避免被防火牆卡住
+
     driver = None
 
     try:
