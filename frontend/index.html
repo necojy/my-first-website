@@ -37,8 +37,17 @@
                     document.getElementById('result').innerHTML = htmlContent;
                 } 
                 // 判斷：如果失敗，就把後端回傳的錯誤印出來看
+                // 判斷：如果失敗，就把後端回傳的錯誤印出來看
                 else {
-                    document.getElementById('result').innerText = "後端回報狀況：" + JSON.stringify(data);
+                    let errorHtml = "後端回報狀況：" + JSON.stringify(data);
+                    
+                    // 📸 如果後端有傳照片過來，就把照片顯示出來！
+                    if (data.screenshot) {
+                        errorHtml += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
+                        errorHtml += `<img src="data:image/png;base64,${data.screenshot}" style="max-width: 100%; border: 3px solid red; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);"/>`;
+                    }
+                    
+                    document.getElementById('result').innerHTML = errorHtml;
                 }
                 
             } catch (error) {
