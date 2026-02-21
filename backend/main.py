@@ -132,12 +132,12 @@ def test_browser():
 
 
     except Exception as e:
-        if driver:
-            try:
-                # 📸 發生未知嚴重錯誤時，一樣拍照存證！
-                screenshot_b64 = driver.get_screenshot_as_base64()
-                driver.quit()
-                return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
-            except:
-                pass
+        # if driver:
+        #     try:
+        #         # 📸 發生未知嚴重錯誤時，一樣拍照存證！
+        #         screenshot_b64 = driver.get_screenshot_as_base64()
+        #         driver.quit()
+        #         return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
+        #     except:
+        #         pass
         return {"message": "發生最外層預期外的錯誤", "error": str(e)}
