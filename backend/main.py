@@ -23,11 +23,19 @@ def test_browser():
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
 
+    # 🌟🌟🌟【找回關鍵武器：對抗屈臣氏專用】🌟🌟🌟
+    options.add_argument("--disable-http2") # 關閉 HTTP/2，繞過指紋防火牆
+    options.add_argument("--ignore-certificate-errors") # 忽略憑證問題
+    options.page_load_strategy = 'eager' # 拒絕無限轉圈圈
+
     driver = None
 
     # 1. 正確初始化瀏覽器
     driver = uc.Chrome(options=options)
-    
+
+    # 🌟 加上超時限制，避免卡死
+    driver.set_page_load_timeout(30)
+        
     print("開啟 Watsons 訂單頁")
     driver.get("https://www.watsons.com.tw/my-account/orders")
     
