@@ -106,9 +106,10 @@ def test_browser():
             
         except TimeoutException:
             # # 📸 萬一找不到頁籤，拍下案發現場
-            screenshot_b64 = driver.get_screenshot_as_base64()
+            # screenshot_b64 = driver.get_screenshot_as_base64()
             # driver.quit()
             # return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤", "screenshot_base64": screenshot_b64}
+            print("切換至門市交易紀錄...")
 
         # ====================
         # 3. 確認並獲取資料
