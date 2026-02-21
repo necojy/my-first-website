@@ -22,19 +22,32 @@
             try {
                 const response = await fetch(backendUrl);
                 const data = await response.json();
-
-                // 建議修改：先不要把整包資料印出來，只印出 message 就好，畫面會更乾淨
-                let errorHtml = "後端回報狀況：" + data.message;
                 
-                // 📸 【修正處1】將 screenshot 改為 screenshot_base64
-                if (data.screenshot_base64) {
-                    errorHtml += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
+                let htmlContent = "";
+
+                // 🌟 1. 如果成功抓到資料：漂亮地印出清單！
+                if (data['統計結果'] && data['統計結果'].length > 0) {
+                    htmlContent += `<h2 style="color: green;">${data.message}</h2>`;
+                    htmlContent += `<h3>共找到 ${data['資料總筆數']} 筆訂單資料：</h3>`;
+                    htmlContent += "<ul style='text-align: left; display: inline-block;'>";
                     
-                    // 【修正處2】這裡也必須改成 data.screenshot_base64
-                    errorHtml += `<img src="data:image/png;base64,${data.screenshot_base64}" style="max-width: 100%; border: 3px solid red; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);"/>`;
+                    data['統計結果'].forEach(item => {
+                        htmlContent += `<li style="font-size: 18px; margin-bottom: 8px;">${item}</li>`;
+                    });
+                    htmlContent += "</ul>";
+                } 
+                // 🌟 2. 如果沒抓到資料，但是有回傳報錯截圖
+                else if (data.screenshot_base64) {
+                    htmlContent += `<p style="color: red;">後端回報：${data.message} (錯誤: ${data.error})</p>`;
+                    htmlContent += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
+                    htmlContent += `<img src="data:image/png;base64,${data.screenshot_base64}" style="max-width: 100%; border: 3px solid red; border-radius: 8px;"/>`;
+                }
+                // 🌟 3. 其他狀況
+                else {
+                    htmlContent += "後端回報狀況：" + JSON.stringify(data);
                 }
                 
-                document.getElementById('result').innerHTML = errorHtml;
+                document.getElementById('result').innerHTML = htmlContent;
 
             } catch (error) {
                 document.getElementById('result').innerText = "連線失敗，請檢查網址或後端狀態";
