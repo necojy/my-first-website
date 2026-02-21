@@ -3,12 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 import time
 import os
 from dotenv import load_dotenv
+from collections import defaultdict
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.keys import Keys # 🌟 記得加回 Keys
 
 load_dotenv()
 app = FastAPI()
@@ -49,20 +50,16 @@ def test_browser():
 
     try:
         driver = uc.Chrome(options=options)
-        
-        # 🌟 【修正 1】加回 wait 的定義！
         wait = WebDriverWait(driver, 20)
-        
         driver.set_page_load_timeout(15)
         
         print("開啟 Watsons 訂單頁...")
         try:
             driver.get("https://www.watsons.com.tw/my-account/orders")
         except TimeoutException:
-            print("⚠️ 載入超時！強制切斷背景渲染！")
             driver.execute_script("window.stop();")
-        except Exception as get_err:
-            print(f"⚠️ GET 發生其他錯誤: {get_err}")
+        except Exception:
+            pass
 
         time.sleep(3)
  
@@ -71,9 +68,7 @@ def test_browser():
         # ====================
         try:
             username_input = wait.until(
-                EC.element_to_be_clickable(
-                    (By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")
-                )
+                EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']"))
             )
             username_input.clear()
             username_input.send_keys(os.getenv("WATSONS_USERNAME"))
@@ -86,40 +81,113 @@ def test_browser():
             password_input.send_keys(os.getenv("WATSONS_PASSWORD"))
             time.sleep(1)
             
-            print("送出登入資訊...")
             password_input.send_keys(Keys.RETURN)
-            
-            # 🌟 【修正 2】按完 Enter 後，先等網頁跑，不要馬上拍照跟關掉！
             print("等待登入跳轉中 (12秒)...")
             time.sleep(12)
 
         except TimeoutException:
             print("未偵測到登入框，可能已登入或被阻擋")
-            
-            
-        # ====================
-        # 🌟 階段一測試點：拍照驗證是否成功登入並跳轉
-        # ====================
-        # 抓取一下當下的網址跟標題
-        current_url = driver.current_url
-        page_title = driver.title
 
-        # 📸 拍下登入 12 秒後的畫面！
-        screenshot_b64 = driver.get_screenshot_as_base64()
+        # ====================
+        # 2. 切換門市交易紀錄
+        # ====================
+        print("切換至門市交易紀錄...")
+        try:
+            store_records_tab = wait.until(
+                EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]"))
+            )
+            driver.execute_script("arguments[0].click();", store_records_tab)
+            time.sleep(5) 
+            
+        except TimeoutException:
+            # 📸 萬一找不到頁籤，拍下案發現場
+            screenshot_b64 = driver.get_screenshot_as_base64()
+            driver.quit()
+            return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤", "screenshot_base64": screenshot_b64}
+
+        # ====================
+        # 3. 確認並獲取資料
+        # ====================
+        print("檢查並載入訂單資料...")
+        items = []
+        try:
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
+            
+            # 等待至少第一筆訂單出現
+            WebDriverWait(driver, 10).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")) > 0
+            )
+            
+            items = driver.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")
+            print(f"✅ 成功抓取 {len(items)} 筆訂單")
+
+        except TimeoutException:
+            driver.quit()
+            return {"message": "查無訂單紀錄", "資料總筆數": 0, "統計結果": [], "詳細清單": []}
+
+        # ====================
+        # 4. 解析資料
+        # ====================
+        raw_data = []
+        stats = defaultdict(lambda: defaultdict(int))
+
+        for item in items:
+            try:
+                try:
+                    data_ul = item.find_element(By.CSS_SELECTOR, "ul.desktop-order-data")
+                except:
+                    data_ul = item.find_element(By.CSS_SELECTOR, "ul.data")
+
+                lis = data_ul.find_elements(By.TAG_NAME, "li")
+                if len(lis) < 3:
+                    continue
+
+                full_date_str = lis[0].text.strip()
+                store_name = lis[1].text.strip()
+                amount = lis[2].text.strip()
+
+                if not full_date_str: 
+                    continue
+
+                date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
+
+                raw_data.append({
+                    "日期": full_date_str,
+                    "店名": store_name,
+                    "金額": amount
+                })
+                stats[date_only][store_name] += 1
+
+            except Exception:
+                continue
+
+        # ====================
+        # 5. 統計整理
+        # ====================
+        final_summary = []
+        sorted_dates = sorted(stats.keys(), reverse=True)
+
+        for date in sorted_dates:
+            for store, count in stats[date].items():
+                final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
 
         driver.quit()
-        
+
+        # 🌟 成功大結局：回傳 JSON 資料，前端會自動把它變成漂亮的清單！
         return {
-            "message": "階段一測試：請確認截圖是否為「登入成功後的訂單頁面」",
-            "機器人位置": current_url,
-            "網頁標題": page_title,
-            "screenshot_base64": screenshot_b64 
+            "message": "資料抓取完成",
+            "資料總筆數": len(raw_data),
+            "統計結果": final_summary,
+            "詳細清單": raw_data,
         }
 
     except Exception as e:
         if driver:
             try:
+                # 📸 發生未知嚴重錯誤時，一樣拍照存證！
+                screenshot_b64 = driver.get_screenshot_as_base64()
                 driver.quit()
+                return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
             except:
                 pass
         return {"message": "發生最外層預期外的錯誤", "error": str(e)}
