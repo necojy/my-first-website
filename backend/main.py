@@ -28,8 +28,8 @@ def test_browser():
     # 1. 正確初始化瀏覽器
     driver = uc.Chrome(options=options)
     
-    # 2. 前往目標網頁 (這裡以 Google 為例，否則截圖會是全白)
-    driver.get("https://www.google.com")
+    print("開啟 Watsons 訂單頁")
+    driver.get("https://www.watsons.com.tw/my-account/orders")
     
     # 3. 取得截圖
     screenshot_b64 = driver.get_screenshot_as_base64()
