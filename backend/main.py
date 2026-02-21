@@ -85,7 +85,7 @@ def test_browser():
             password_input.send_keys(os.getenv("WATSONS_PASSWORD"))
             time.sleep(1)
             
-            # password_input.send_keys(Keys.RETURN)
+            password_input.send_keys(Keys.RETURN)
                    
             # 抓取一下當下的網址跟標題
             current_url = driver.current_url
