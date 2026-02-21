@@ -121,10 +121,7 @@ def test_browser():
             items = driver.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")
             print(f"✅ 成功抓取 {len(items)} 筆訂單")
 
-            # 📸 發生未知嚴重錯誤時，一樣拍照存證！
-            screenshot_b64 = driver.get_screenshot_as_base64()
-            driver.quit()
-            return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
+            
         
         except TimeoutException:
             driver.quit()
@@ -165,7 +162,12 @@ def test_browser():
 
             except Exception:
                 continue
-
+            
+        # 📸 發生未知嚴重錯誤時，一樣拍照存證！
+        screenshot_b64 = driver.get_screenshot_as_base64()
+        driver.quit()
+        return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
+    
         # ====================
         # 5. 統計整理
         # ====================
