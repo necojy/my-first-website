@@ -4,6 +4,7 @@ import time
 import os
 from dotenv import load_dotenv
 from collections import defaultdict
+from bs4 import BeautifulSoup  # 🌟 記得加回 BeautifulSoup (超快解析神器)
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -89,7 +90,7 @@ def test_browser():
             print("未偵測到登入框，可能已登入或被阻擋")
 
         # ====================
-        # 2. 切換門市交易紀錄 (🌟 階段二測試重點)
+        # 2. 切換門市交易紀錄
         # ====================
         print("切換至門市交易紀錄...")
         try:
@@ -98,39 +99,89 @@ def test_browser():
             )
             driver.execute_script("arguments[0].click();", store_records_tab)
             print("點擊成功，等待資料載入...")
-            
-            # 給網頁 5 秒鐘載入表格資料
             time.sleep(5) 
-
-            # 📸 【修正 1】這裡是「成功區塊」：拍照並回傳成功訊息！
-            current_url = driver.current_url
-            screenshot_b64 = driver.get_screenshot_as_base64()
-            driver.quit()
-            
-            return {
-                "status": "success",
-                "message": "階段二測試通過：成功切換到「門市交易紀錄」！請看截圖！",
-                "機器人位置": current_url,
-                "screenshot_base64": screenshot_b64
-            }
             
         except TimeoutException:
-            # 📸 【修正 2】把註解解開：萬一找不到頁籤，拍下案發現場
             screenshot_b64 = driver.get_screenshot_as_base64()
             driver.quit()
-            return {
-                "message": "發生錯誤", 
-                "error": "找不到門市交易紀錄頁籤", 
-                "screenshot_base64": screenshot_b64
-            }
+            return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤", "screenshot_base64": screenshot_b64}
 
         # ====================
-        # 3. 確認並獲取資料 (維持註解)
+        # 3. 獲取與解析資料 (🌟 階段三重點)
         # ====================
-        # ...
+        print("檢查並載入訂單資料...")
+        try:
+            # 確保訂單容器出現
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
+            # 給網頁一點時間把 HTML 畫完
+            time.sleep(3) 
+            
+        except TimeoutException:
+            driver.quit()
+            return {"message": "查無訂單紀錄", "資料總筆數": 0, "統計結果": [], "詳細清單": []}
+
+        # 🌟 讓 BeautifulSoup 接手解析，速度快又穩！
+        page_html = driver.page_source
+        soup = BeautifulSoup(page_html, 'html.parser')
+        
+        # 找出所有訂單項目
+        items = soup.find_all('e2-my-account-order-history-item')
+        print(f"✅ 成功抓取 {len(items)} 筆訂單 HTML")
+
+        # ====================
+        # 4. 資料整理與統計
+        # ====================
+        raw_data = []
+        stats = defaultdict(lambda: defaultdict(int))
+
+        for item in items:
+            try:
+                # 優先抓取桌面版排版，若無則抓取手機版排版
+                data_ul = item.find('ul', class_='desktop-order-data')
+                if not data_ul:
+                    data_ul = item.find('ul', class_='data')
+
+                if data_ul:
+                    lis = data_ul.find_all('li')
+                    if len(lis) >= 3:
+                        full_date_str = lis[0].text.strip()
+                        store_name = lis[1].text.strip()
+                        amount = lis[2].text.strip()
+
+                        if not full_date_str: 
+                            continue
+
+                        # 萃取日期 (去掉時間)
+                        date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
+
+                        raw_data.append({
+                            "日期": full_date_str,
+                            "店名": store_name,
+                            "金額": amount
+                        })
+
+                        stats[date_only][store_name] += 1
+            except Exception:
+                continue
+
+        # 整理最終統計字串
+        final_summary = []
+        sorted_dates = sorted(stats.keys(), reverse=True)
+
+        for date in sorted_dates:
+            for store, count in stats[date].items():
+                final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
+
+        driver.quit()
+
+        return {
+            "message": "資料抓取與分析完成！",
+            "資料總筆數": len(raw_data),
+            "統計結果": final_summary,
+            "詳細清單": raw_data
+        }
 
     except Exception as e:
-        # 📸 【修正 3】把最外層的防護網解開，避免程式死當
         if driver:
             try:
                 screenshot_b64 = driver.get_screenshot_as_base64()
