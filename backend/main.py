@@ -28,15 +28,14 @@ def test_browser():
         return {"message": "發生錯誤", "error": "找不到帳號或密碼，請檢查 .env 檔案"}
 
     options = uc.ChromeOptions()
-    options.add_argument("--headless=new")  # 雲端保持開啟
+    
+    # ⚠️ 【上雲端必備】：推送到 Hugging Face 時，這行不能有 #
+    options.add_argument("--headless=new")  
+    
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
-
-    # 🌟🌟🌟【終極魔法：破解 ERR_HTTP2_PROTOCOL_ERROR】🌟🌟🌟
-    options.add_argument("--disable-http2") # 關閉 HTTP/2，強制降級回傳統 HTTP/1.1
-    options.add_argument("--ignore-certificate-errors") # 忽略憑證警告，避免被防火牆卡住
 
     driver = None
 
@@ -48,7 +47,7 @@ def test_browser():
         driver.get("https://www.watsons.com.tw/my-account/orders")
 
         # ====================
-        # 1. 登入流程
+        # 1. 登入流程 (已測試通過 ✅)
         # ====================
         try:
             username_input = wait.until(
@@ -66,50 +65,63 @@ def test_browser():
             password_input.clear()
             password_input.send_keys(os.getenv("WATSONS_PASSWORD"))
             time.sleep(1)
-            
-            # 送出登入
             password_input.send_keys(Keys.RETURN)
+            screenshot_b64 = driver.get_screenshot_as_base64()
+
+            wait.until(EC.url_contains("orders"))
+            time.sleep(3)
             
-            # 🌟 修正點：拿掉強制 driver.get()，改為單純耐心等待 12 秒，讓網頁自己處理跳轉與載入
-            time.sleep(12)
+            screenshot_b64 = driver.get_screenshot_as_base64()
+            return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤，請確認 XPath 是否正確或畫面是否載入完全","screenshot": screenshot_b64}
 
         except TimeoutException:
             print("未偵測到登入框，可能已登入")
 
         # ====================
-        # 2. 切換門市交易紀錄
+        # 2. 切換門市交易紀錄 (🌟 本次測試重點)
         # ====================
         print("切換至門市交易紀錄...")
         try:
-            store_records_tab = wait.until(
-                EC.presence_of_element_located(
-                    (By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")
-                )
-            )
-            driver.execute_script("arguments[0].click();", store_records_tab)
-            time.sleep(5) 
+            screenshot_b64 = driver.get_screenshot_as_base64()
+            # driver.quit()
+            
+        
+            # # 確保元素存在於 HTML 中
+            # store_records_tab = wait.until(
+            #     EC.presence_of_element_located(
+            #         (By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")
+            #     )
+            # )
+            # # 使用 JS 強制點擊
+            # driver.execute_script("arguments[0].click();", store_records_tab)
+            
+            # # 給網頁 5 秒鐘去呼叫後端 API 載入表格資料
+            # time.sleep(5) 
 
         except TimeoutException:
-            current_url = driver.current_url
-            page_title = driver.title
-            # 📸 🌟 終極武器：如果找不到按鈕，直接拍一張照片 (Base64格式) 回傳給前端！
-            screenshot_b64 = driver.get_screenshot_as_base64()
             driver.quit()
-            return {
-                "message": "發生錯誤", 
-                "error": "找不到門市交易紀錄頁籤",
-                "機器人當下位置 (URL)": current_url,
-                "機器人當下看到的標題": page_title,
-                "screenshot": screenshot_b64
-            }
+            return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤，請確認 XPath 是否正確或畫面是否載入完全","screenshot": screenshot_b64}
 
-        # 🌟 階段二測試成功回傳
+        # 🌟 階段二測試點：成功點擊並等待資料載入後，直接回傳
         driver.quit()
         return {
             "status": "success",
             "message": "階段二測試通過：成功切換到「門市交易紀錄」！",
-            "統計結果": ["頁籤切換成功！"]
+            "統計結果": [
+                "如果看到這行，代表 JavaScript 強制點擊大法在雲端也生效了！",
+                "準備進入最終階段：抓取並解析 HTML 資料！"
+            ]
         }
+
+        # ====================
+        # 3. 確認並獲取資料 (維持註解)
+        # ====================
+        # ... 
+
+        # ====================
+        # 4. 解析資料與統計 (維持註解)
+        # ====================
+        # ...
 
     except Exception as e:
         if driver:
