@@ -121,72 +121,15 @@ def test_browser():
             items = driver.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")
             print(f"✅ 成功抓取 {len(items)} 筆訂單")
 
-            
+            # 📸 發生未知嚴重錯誤時，一樣拍照存證！
+            screenshot_b64 = driver.get_screenshot_as_base64()
+            driver.quit()
+            return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
         
         except TimeoutException:
             driver.quit()
             return {"message": "查無訂單紀錄", "資料總筆數": 0, "統計結果": [], "詳細清單": []}
 
-        # ====================
-        # 4. 解析資料
-        # ====================
-        raw_data = []
-        stats = defaultdict(lambda: defaultdict(int))
-
-        for item in items:
-            try:
-                try:
-                    data_ul = item.find_element(By.CSS_SELECTOR, "ul.desktop-order-data")
-                except:
-                    data_ul = item.find_element(By.CSS_SELECTOR, "ul.data")
-
-                lis = data_ul.find_elements(By.TAG_NAME, "li")
-                if len(lis) < 3:
-                    continue
-
-                full_date_str = lis[0].text.strip()
-                store_name = lis[1].text.strip()
-                amount = lis[2].text.strip()
-
-                if not full_date_str: 
-                    continue
-
-                date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
-
-                raw_data.append({
-                    "日期": full_date_str,
-                    "店名": store_name,
-                    "金額": amount
-                })
-                stats[date_only][store_name] += 1
-
-            except Exception:
-                continue
-            
-        # 📸 發生未知嚴重錯誤時，一樣拍照存證！
-        screenshot_b64 = driver.get_screenshot_as_base64()
-        driver.quit()
-        return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
-    
-        # ====================
-        # 5. 統計整理
-        # ====================
-        final_summary = []
-        sorted_dates = sorted(stats.keys(), reverse=True)
-
-        for date in sorted_dates:
-            for store, count in stats[date].items():
-                final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
-
-        driver.quit()
-
-        # 🌟 成功大結局：回傳 JSON 資料，前端會自動把它變成漂亮的清單！
-        return {
-            "message": "資料抓取完成",
-            "資料總筆數": len(raw_data),
-            "統計結果": final_summary,
-            "詳細清單": raw_data,
-        }
 
     except Exception as e:
         if driver:
