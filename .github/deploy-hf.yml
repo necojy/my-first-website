@@ -1,29 +1,32 @@
 name: Deploy Backend to Hugging Face
 
+# 🌟 觸發條件：當程式碼推送到 main 或 master 分支時，就會啟動機器人
 on:
   push:
-    branches: [main]
-    # 🌟 智能設定：只有當 backend 資料夾內的檔案有變更時，才觸發更新
-    paths:
-      - 'backend/**' 
+    branches: [main, master]
 
 jobs:
   sync-to-hf:
     runs-on: ubuntu-latest
     steps:
-      - name: 📥 抓取最新程式碼
+      - name: 📥 1. 抓取最新程式碼
         uses: actions/checkout@v3
 
-      - name: 🚀 強制推送後端至 Hugging Face
+      - name: 🚀 2. 強制打包 backend 資料夾並送往 Hugging Face
         env:
+          # 呼叫你剛剛存在 GitHub 的密碼
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
-        # 🌟 隔離推送：只進入 backend 資料夾，把它變成獨立的包裹送給 HF
         run: |
+          # 進入你的後端資料夾
           cd backend
+          
+          # 在這個資料夾裡建立一個獨立的包裹
           git init
           git checkout -b main
           git add .
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "自動從 GitHub 同步部署"
-          git push --force https://necojy:$HF_TOKEN@huggingface.co/spaces/necojy/watsons-bot main
+          git commit -m "🤖 自動從 GitHub 同步後端程式碼"
+          
+          # 🌟 透過機器人強制推送到你的 HF 專案 (注意你的帳號大小寫是 necOjy)
+          git push --force https://necOjy:$HF_TOKEN@huggingface.co/spaces/necOjy/watsons-bot main
