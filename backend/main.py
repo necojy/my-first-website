@@ -105,32 +105,32 @@ def test_browser():
             return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
             
         except TimeoutException:
-            # 📸 萬一找不到頁籤，拍下案發現場
+            # # 📸 萬一找不到頁籤，拍下案發現場
             screenshot_b64 = driver.get_screenshot_as_base64()
-            driver.quit()
-            return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤", "screenshot_base64": screenshot_b64}
+            # driver.quit()
+            # return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤", "screenshot_base64": screenshot_b64}
 
         # ====================
         # 3. 確認並獲取資料
         # ====================
-        print("檢查並載入訂單資料...")
-        items = []
-        try:
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
+        # print("檢查並載入訂單資料...")
+        # items = []
+        # try:
+        #     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
             
-            # 等待至少第一筆訂單出現
-            WebDriverWait(driver, 10).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")) > 0
-            )
+        #     # 等待至少第一筆訂單出現
+        #     WebDriverWait(driver, 10).until(
+        #         lambda d: len(d.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")) > 0
+        #     )
             
-            items = driver.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")
-            print(f"✅ 成功抓取 {len(items)} 筆訂單")
+        #     items = driver.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")
+        #     print(f"✅ 成功抓取 {len(items)} 筆訂單")
 
             
         
-        except TimeoutException:
-            driver.quit()
-            return {"message": "查無訂單紀錄", "資料總筆數": 0, "統計結果": [], "詳細清單": []}
+        # except TimeoutException:
+        #     driver.quit()
+        #     return {"message": "查無訂單紀錄", "資料總筆數": 0, "統計結果": [], "詳細清單": []}
 
 
     except Exception as e:
