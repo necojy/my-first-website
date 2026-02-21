@@ -89,7 +89,7 @@ def test_browser():
             print("未偵測到登入框，可能已登入或被阻擋")
 
         # ====================
-        # 2. 切換門市交易紀錄
+        # 2. 切換門市交易紀錄 (🌟 階段二測試重點)
         # ====================
         print("切換至門市交易紀錄...")
         try:
@@ -97,50 +97,45 @@ def test_browser():
                 EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]"))
             )
             driver.execute_script("arguments[0].click();", store_records_tab)
+            print("點擊成功，等待資料載入...")
+            
+            # 給網頁 5 秒鐘載入表格資料
             time.sleep(5) 
 
-            # 📸 發生未知嚴重錯誤時，一樣拍照存證！
+            # 📸 【修正 1】這裡是「成功區塊」：拍照並回傳成功訊息！
+            current_url = driver.current_url
             screenshot_b64 = driver.get_screenshot_as_base64()
             driver.quit()
-            return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
+            
+            return {
+                "status": "success",
+                "message": "階段二測試通過：成功切換到「門市交易紀錄」！請看截圖！",
+                "機器人位置": current_url,
+                "screenshot_base64": screenshot_b64
+            }
             
         except TimeoutException:
-            # # 📸 萬一找不到頁籤，拍下案發現場
-            # screenshot_b64 = driver.get_screenshot_as_base64()
-            # driver.quit()
-            # return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤", "screenshot_base64": screenshot_b64}
-            print("切換至門市交易紀錄...")
+            # 📸 【修正 2】把註解解開：萬一找不到頁籤，拍下案發現場
+            screenshot_b64 = driver.get_screenshot_as_base64()
+            driver.quit()
+            return {
+                "message": "發生錯誤", 
+                "error": "找不到門市交易紀錄頁籤", 
+                "screenshot_base64": screenshot_b64
+            }
 
         # ====================
-        # 3. 確認並獲取資料
+        # 3. 確認並獲取資料 (維持註解)
         # ====================
-        # print("檢查並載入訂單資料...")
-        # items = []
-        # try:
-        #     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-            
-        #     # 等待至少第一筆訂單出現
-        #     WebDriverWait(driver, 10).until(
-        #         lambda d: len(d.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")) > 0
-        #     )
-            
-        #     items = driver.find_elements(By.CSS_SELECTOR, "e2-my-account-order-history-item")
-        #     print(f"✅ 成功抓取 {len(items)} 筆訂單")
-
-            
-        
-        # except TimeoutException:
-        #     driver.quit()
-        #     return {"message": "查無訂單紀錄", "資料總筆數": 0, "統計結果": [], "詳細清單": []}
-
+        # ...
 
     except Exception as e:
-        # if driver:
-        #     try:
-        #         # 📸 發生未知嚴重錯誤時，一樣拍照存證！
-        #         screenshot_b64 = driver.get_screenshot_as_base64()
-        #         driver.quit()
-        #         return {"message": "發生預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
-        #     except:
-        #         pass
+        # 📸 【修正 3】把最外層的防護網解開，避免程式死當
+        if driver:
+            try:
+                screenshot_b64 = driver.get_screenshot_as_base64()
+                driver.quit()
+                return {"message": "發生最外層預期外的錯誤", "error": str(e), "screenshot_base64": screenshot_b64}
+            except:
+                pass
         return {"message": "發生最外層預期外的錯誤", "error": str(e)}
