@@ -8,6 +8,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.keys import Keys # 🌟 記得加回 Keys
 
 load_dotenv()
 app = FastAPI()
@@ -32,17 +33,16 @@ def test_browser():
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     
-    # 🌟🌟🌟【新增魔法 1：終極人類偽裝術】🌟🌟🌟
-    # 騙防火牆這是一台正常的 Windows 電腦，並且使用繁體中文
+    # 🌟 人類偽裝術
     options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
     options.add_argument("--lang=zh-TW")
     options.add_argument("--accept-lang=zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
 
-    # 🛡️ 魔法 2：繞過 HTTP/2 阻擋
+    # 🛡️ 繞過 HTTP/2 阻擋
     options.add_argument("--disable-http2") 
     options.add_argument("--ignore-certificate-errors")
     
-    # ⚡ 魔法 3：Eager 模式 (不等沒用的廣告，拿到核心網頁就跑)
+    # ⚡ Eager 模式
     options.page_load_strategy = 'eager'
 
     driver = None
@@ -50,7 +50,9 @@ def test_browser():
     try:
         driver = uc.Chrome(options=options)
         
-        # 設定 15 秒極限
+        # 🌟 【修正 1】加回 wait 的定義！
+        wait = WebDriverWait(driver, 20)
+        
         driver.set_page_load_timeout(15)
         
         print("開啟 Watsons 訂單頁...")
@@ -62,7 +64,6 @@ def test_browser():
         except Exception as get_err:
             print(f"⚠️ GET 發生其他錯誤: {get_err}")
 
-        # 給網頁 3 秒鐘喘息
         time.sleep(3)
  
         # ====================
@@ -85,31 +86,35 @@ def test_browser():
             password_input.send_keys(os.getenv("WATSONS_PASSWORD"))
             time.sleep(1)
             
+            print("送出登入資訊...")
             password_input.send_keys(Keys.RETURN)
-                   
-            # 抓取一下當下的網址跟標題
-            current_url = driver.current_url
-            page_title = driver.title
-
-            # 📸 拍下當下畫面
-            screenshot_b64 = driver.get_screenshot_as_base64()
-
-            driver.quit()
-        
             
-            # 給予登入跳轉時間
+            # 🌟 【修正 2】按完 Enter 後，先等網頁跑，不要馬上拍照跟關掉！
+            print("等待登入跳轉中 (12秒)...")
             time.sleep(12)
-
-            return {
-            "message": "已加上人類偽裝，請查看截圖是否成功抵達屈臣氏！",
-            "機器人位置": current_url,
-            "網頁標題": page_title,
-            "screenshot_base64": screenshot_b64 
-            }   
 
         except TimeoutException:
             print("未偵測到登入框，可能已登入或被阻擋")
+            
+            
+        # ====================
+        # 🌟 階段一測試點：拍照驗證是否成功登入並跳轉
+        # ====================
+        # 抓取一下當下的網址跟標題
+        current_url = driver.current_url
+        page_title = driver.title
 
+        # 📸 拍下登入 12 秒後的畫面！
+        screenshot_b64 = driver.get_screenshot_as_base64()
+
+        driver.quit()
+        
+        return {
+            "message": "階段一測試：請確認截圖是否為「登入成功後的訂單頁面」",
+            "機器人位置": current_url,
+            "網頁標題": page_title,
+            "screenshot_base64": screenshot_b64 
+        }
 
     except Exception as e:
         if driver:
