@@ -64,22 +64,52 @@ def test_browser():
 
         # 給網頁 3 秒鐘喘息
         time.sleep(3)
-        
-        # 抓取一下當下的網址跟標題
-        current_url = driver.current_url
-        page_title = driver.title
+ 
+        # ====================
+        # 1. 登入流程 
+        # ====================
+        try:
+            username_input = wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")
+                )
+            )
+            username_input.clear()
+            username_input.send_keys(os.getenv("WATSONS_USERNAME"))
+            time.sleep(1)
 
-        # 📸 拍下當下畫面
-        screenshot_b64 = driver.get_screenshot_as_base64()
+            password_input = wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//input[@type='password']"))
+            )
+            password_input.clear()
+            password_input.send_keys(os.getenv("WATSONS_PASSWORD"))
+            time.sleep(1)
+            
+            # password_input.send_keys(Keys.RETURN)
+                   
+            # 抓取一下當下的網址跟標題
+            current_url = driver.current_url
+            page_title = driver.title
 
-        driver.quit()
+            # 📸 拍下當下畫面
+            screenshot_b64 = driver.get_screenshot_as_base64()
+
+            driver.quit()
         
-        return {
+            
+            # 給予登入跳轉時間
+            time.sleep(12)
+
+            return {
             "message": "已加上人類偽裝，請查看截圖是否成功抵達屈臣氏！",
             "機器人位置": current_url,
             "網頁標題": page_title,
             "screenshot_base64": screenshot_b64 
-        }
+            }   
+
+        except TimeoutException:
+            print("未偵測到登入框，可能已登入或被阻擋")
+
 
     except Exception as e:
         if driver:
