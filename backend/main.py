@@ -72,7 +72,8 @@ def test_browser():
             "message": "已成功強行切斷載入，請查看下方截圖！",
             "機器人位置": current_url,
             "網頁標題": page_title,
-            "screenshot": screenshot_b64
+            # 🌟 把它改成跟前端一模一樣的名字！
+            "screenshot_base64": screenshot_b64 
         }
 
     except Exception as e:
