@@ -37,7 +37,8 @@ def test_browser():
     driver.set_page_load_timeout(30)
         
     print("開啟 Watsons 訂單頁")
-    driver.get("https://www.google.com/?hl=zh_TW")
+    driver.get("https://www.watsons.com.tw/my-account/orders")  
+    # driver.get("https://www.google.com/?hl=zh_TW")
     
     # 3. 取得截圖
     screenshot_b64 = driver.get_screenshot_as_base64()
