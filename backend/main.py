@@ -32,47 +32,52 @@ def test_browser():
     options.add_argument("--disable-gpu")
     options.add_argument("--window-size=1920,1080")
     
-    # 魔法指令：繞過 HTTP/2 阻擋
+    # 🌟🌟🌟【新增魔法 1：終極人類偽裝術】🌟🌟🌟
+    # 騙防火牆這是一台正常的 Windows 電腦，並且使用繁體中文
+    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+    options.add_argument("--lang=zh-TW")
+    options.add_argument("--accept-lang=zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+
+    # 🛡️ 魔法 2：繞過 HTTP/2 阻擋
     options.add_argument("--disable-http2") 
     options.add_argument("--ignore-certificate-errors")
+    
+    # ⚡ 魔法 3：Eager 模式 (不等沒用的廣告，拿到核心網頁就跑)
+    options.page_load_strategy = 'eager'
 
     driver = None
 
     try:
         driver = uc.Chrome(options=options)
         
-        # 🌟 【戰術核心】：只給 15 秒！時間一到立刻拋出超時警告，不讓伺服器 500 崩潰
+        # 設定 15 秒極限
         driver.set_page_load_timeout(15)
         
         print("開啟 Watsons 訂單頁...")
         try:
-            # 這裡就是剛剛發生崩潰的地方，我們用 try 包起來保護伺服器
             driver.get("https://www.watsons.com.tw/my-account/orders")
         except TimeoutException:
-            # 🌟 時間到！強制切斷背景的惡意迴圈驗證！
             print("⚠️ 載入超時！強制切斷背景渲染！")
             driver.execute_script("window.stop();")
         except Exception as get_err:
             print(f"⚠️ GET 發生其他錯誤: {get_err}")
 
-        # 給網頁 3 秒鐘喘息，看能不能把殘餘的畫面畫出來
+        # 給網頁 3 秒鐘喘息
         time.sleep(3)
         
         # 抓取一下當下的網址跟標題
         current_url = driver.current_url
         page_title = driver.title
 
-        # 📸 終極武器：拍下當下畫面，看屈臣氏到底在畫面塞了什麼！
+        # 📸 拍下當下畫面
         screenshot_b64 = driver.get_screenshot_as_base64()
 
         driver.quit()
         
-        # 💡 故意不回傳 "統計結果"，這樣前端網頁就會跑到 else 區塊，把這張截圖印出來！
         return {
-            "message": "已成功強行切斷載入，請查看下方截圖！",
+            "message": "已加上人類偽裝，請查看截圖是否成功抵達屈臣氏！",
             "機器人位置": current_url,
             "網頁標題": page_title,
-            # 🌟 把它改成跟前端一模一樣的名字！
             "screenshot_base64": screenshot_b64 
         }
 
