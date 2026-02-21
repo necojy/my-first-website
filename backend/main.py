@@ -32,7 +32,7 @@ def test_browser():
 
     # 1. 正確初始化瀏覽器
     driver = uc.Chrome(options=options)
-
+    
     # 🌟 加上超時限制，避免卡死
     driver.set_page_load_timeout(30)
         
