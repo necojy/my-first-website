@@ -148,32 +148,47 @@ def test_browser():
 
                 if data_ul:
                     lis = data_ul.find_all('li')
-                    if len(lis) >= 3:
+                    # 根據你提供的 HTML，通常會有 5 個項目 (日期, 門市, 金額, 獲得點數, 使用點數)
+                    if len(lis) >= 5:
                         full_date_str = lis[0].text.strip()
                         store_name = lis[1].text.strip()
                         amount = lis[2].text.strip()
+                        points_earned = lis[3].text.strip()
+                        points_used = lis[4].text.strip()
 
                         if not full_date_str: 
                             continue
 
-                        # 萃取日期 (去掉時間)
                         date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
 
-                        # 🌟 貪婪抓取法：把剩下的所有 <li> 資訊都吸進來！
-                        extra_details = []
-                        for i in range(3, len(lis)):
-                            text_content = lis[i].text.strip()
-                            # 過濾掉空白的項目
-                            if text_content: 
-                                extra_details.append(text_content)
+                        # 🌟🌟🌟 開始抓取商品明細 🌟🌟🌟
+                        products = []
+                        # 找出這筆訂單內所有的商品區塊
+                        detail_blocks = item.find_all('div', class_='order-details')
+                        
+                        for block in detail_blocks:
+                            name_elem = block.find('div', class_='product-name')
+                            qty_elem = block.find('div', class_='product-quantity')
+                            
+                            if name_elem and qty_elem:
+                                # 清理多餘的空白與換行符號
+                                p_name = name_elem.text.replace('\n', '').strip()
+                                # 把多個空白縮減成一個空白
+                                p_name = ' '.join(p_name.split()) 
+                                p_qty = qty_elem.text.strip()
+                                
+                                products.append({
+                                    "商品名稱": p_name,
+                                    "數量": p_qty
+                                })
 
-                        # 🌟 將新抓到的細節加入字典中
                         raw_data.append({
                             "日期": full_date_str,
                             "店名": store_name,
                             "金額": amount,
-                            "可能訂單編號": order_number,
-                            "其他明細": extra_details
+                            "獲得點數": points_earned,
+                            "使用點數": points_used,
+                            "購買商品清單": products
                         })
 
                         stats[date_only][store_name] += 1
@@ -181,7 +196,6 @@ def test_browser():
                 print(f"解析單筆資料發生錯誤: {e}")
                 continue
 
-        # 整理最終統計字串
         final_summary = []
         sorted_dates = sorted(stats.keys(), reverse=True)
 
@@ -192,7 +206,7 @@ def test_browser():
         driver.quit()
 
         return {
-            "message": "資料抓取與分析完成！(包含進階明細)",
+            "message": "資料抓取與分析完成！",
             "資料總筆數": len(raw_data),
             "統計結果": final_summary,
             "詳細清單": raw_data
