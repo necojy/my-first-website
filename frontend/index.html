@@ -5,11 +5,13 @@
     <title>屈臣氏訂單查詢系統</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; }
-        button { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; }
+        .primary-btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; }
+        .summary-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 5px; margin-left: 10px; transition: 0.3s; }
+        .summary-btn.active { background-color: #ffc107; color: black; font-weight: bold; }
         
-        /* 搜尋框樣式 */
-        #search-container { margin-top: 20px; display: none; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: inline-block; }
-        .search-input { padding: 10px; font-size: 16px; margin: 0 10px; border: 1px solid #ccc; border-radius: 4px; width: 200px; }
+        /* 搜尋框與控制列樣式 */
+        #control-panel { margin-top: 20px; display: none; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: inline-block; }
+        .search-input { padding: 10px; font-size: 16px; margin: 0 5px; border: 1px solid #ccc; border-radius: 4px; width: 180px; }
         
         #result { margin-top: 30px; }
         
@@ -18,57 +20,60 @@
         th { background-color: #f2f2f2; padding: 12px; border: 1px solid #ddd; }
         td { padding: 12px; border: 1px solid #ddd; vertical-align: top; }
         .amount { color: #d9534f; font-weight: bold; }
-        .details { color: #555; font-size: 0.9em; }
+        .total-qty { color: #d9534f; font-weight: bold; }
     </style>
 </head>
 <body>
     <h1>🤖 屈臣氏雲端隱形機器人</h1>
     
-    <button onclick="sendData()" id="fetchBtn">呼叫機器人出動！</button>
+    <button class="primary-btn" onclick="sendData()" id="fetchBtn">呼叫機器人出動！</button>
     
-    <div id="search-container">
+    <div id="control-panel" style="display: none;">
         <strong>🔍 快速搜尋：</strong>
         <input type="text" id="searchDate" class="search-input" placeholder="搜尋日期 (例: 15-Feb)" onkeyup="filterOrders()">
         <input type="text" id="searchStore" class="search-input" placeholder="搜尋店名 (例: 南屯)" onkeyup="filterOrders()">
+        <button id="toggleModeBtn" class="summary-btn" onclick="toggleMode()">📦 切換為統整模式</button>
     </div>
     
     <div id="result" style="font-weight: bold;"></div>
 
     <script>
-        // 🌟 全域變數：用來記住後端傳來的所有資料
         let allOrders = []; 
         let statsSummary = [];
         let summaryMessage = "";
         let errorImage = "";
+        
+        // 🌟 新增一個變數，用來記住現在是不是「統整模式」
+        let isSummaryMode = false;
 
         async function sendData() {
             const backendUrl = "https://necojy-watsons-bot.hf.space/api/open_browser";
             
-            // 🌟 狀態重置：按下按鈕時，立刻顯示等待文字、清空搜尋框、並隱藏搜尋區塊！
             document.getElementById('result').style.color = "blue";
             document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 15~30 秒...";
             
-            document.getElementById('searchDate').value = "";   // 清空日期搜尋
-            document.getElementById('searchStore').value = "";  // 清空店名搜尋
-            document.getElementById('search-container').style.display = "none"; // 嚴格隱藏
+            document.getElementById('searchDate').value = "";   
+            document.getElementById('searchStore').value = "";  
+            document.getElementById('control-panel').style.display = "none"; 
             
+            // 每次抓取新資料時，預設回到明細模式
+            isSummaryMode = false; 
+            updateToggleButtonUI();
+
             try {
                 const response = await fetch(backendUrl);
                 const data = await response.json();
                 
-                // 將後端資料存入全域變數
                 allOrders = data['詳細清單'] || [];
                 statsSummary = data['統計結果'] || [];
                 summaryMessage = data.message || "";
                 errorImage = data.screenshot_base64 || "";
 
-                // 🌟 只有當機器人成功抓回資料，且資料筆數大於 0 時，才把搜尋框顯示出來！
                 if (allOrders.length > 0) {
-                    document.getElementById('search-container').style.display = "inline-block";
+                    document.getElementById('control-panel').style.display = "inline-block";
                 }
 
-                // 呼叫渲染畫面的函數
-                renderView(allOrders);
+                filterOrders(); // 抓完資料後執行一次過濾與渲染
 
             } catch (error) {
                 document.getElementById('result').style.color = "red";
@@ -76,61 +81,56 @@
             }
         }
 
-        // 🌟 新增：過濾資料的函數 (當你在輸入框打字時會自動觸發)
+        // 🌟 切換模式的函數
+        function toggleMode() {
+            isSummaryMode = !isSummaryMode; // 反轉狀態
+            updateToggleButtonUI();
+            filterOrders(); // 切換模式後，用現在的搜尋條件重新畫表格
+        }
+
+        // 🌟 更新按鈕外觀
+        function updateToggleButtonUI() {
+            const btn = document.getElementById('toggleModeBtn');
+            if (isSummaryMode) {
+                btn.innerText = "📜 切換回明細模式";
+                btn.classList.add("active");
+            } else {
+                btn.innerText = "📦 切換為統整模式";
+                btn.classList.remove("active");
+            }
+        }
+
+        // 🌟 過濾資料 (每次打字或切換按鈕都會跑到這裡)
         function filterOrders() {
-            // 取得輸入框的值，並轉成小寫方便比對
             const dateKeyword = document.getElementById('searchDate').value.toLowerCase();
             const storeKeyword = document.getElementById('searchStore').value.toLowerCase();
 
-            // 從 allOrders 篩選出符合條件的訂單
             const filteredData = allOrders.filter(order => {
                 const matchDate = order['日期'].toLowerCase().includes(dateKeyword);
                 const matchStore = order['店名'].toLowerCase().includes(storeKeyword);
-                return matchDate && matchStore; // 必須同時符合日期與店名條件
+                return matchDate && matchStore; 
             });
 
-            // 拿過濾後的資料重新畫表格
-            renderView(filteredData);
+            // 🌟 判斷現在是什麼模式，就呼叫對應的畫圖函數！
+            if (isSummaryMode) {
+                renderSummaryView(filteredData);
+            } else {
+                renderDetailView(filteredData);
+            }
         }
 
-        // 🌟 把畫面的邏輯獨立出來
-        function renderView(ordersToRender) {
-            let htmlContent = "";
+        // ==========================================
+        // 渲染函數 A：原始的「明細模式」
+        // ==========================================
+        function renderDetailView(ordersToRender) {
+            let htmlContent = getSummaryHtml(); // 取得上方的總結文字
 
-            // 1. 畫出上方的總結與統計 (只在最一開始或有資料時顯示)
-            if (statsSummary.length > 0) {
-                htmlContent += `<h2 style="color: green;">${summaryMessage}</h2>`;
-                htmlContent += `<h3>📊 統計摘要 (共 ${statsSummary.length} 筆門市紀錄)</h3>`;
-                htmlContent += "<ul style='text-align: left; display: inline-block;'>";
-                statsSummary.forEach(item => {
-                    htmlContent += `<li style="font-size: 18px; margin-bottom: 8px;">${item}</li>`;
-                });
-                htmlContent += "</ul>";
-            } 
-            else if (errorImage) {
-                // 如果有錯誤截圖
-                htmlContent += `<p style="color: red;">後端回報：${summaryMessage}</p>`;
-                htmlContent += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
-                htmlContent += `<img src="data:image/png;base64,${errorImage}" style="max-width: 100%; border: 3px solid red; border-radius: 8px;"/>`;
-                document.getElementById('result').innerHTML = htmlContent;
-                return;
-            }
-
-            // 2. 畫出下方的表格
             if (ordersToRender.length > 0) {
                 htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
-                htmlContent += `<h3>📜 訂單明細 (顯示 ${ordersToRender.length} 筆)</h3>`;
-                htmlContent += `<table>`;
-                htmlContent += `<tr>
-                                    <th>日期</th>
-                                    <th>店名</th>
-                                    <th>金額</th>
-                                    <th>點數資訊</th>
-                                    <th>購買商品明細</th>
-                                </tr>`;
+                htmlContent += `<h3>📜 訂單明細 (顯示 ${ordersToRender.length} 筆紀錄)</h3>`;
+                htmlContent += `<table><tr><th>日期</th><th>店名</th><th>金額</th><th>點數資訊</th><th>購買商品明細</th></tr>`;
 
                 ordersToRender.forEach(order => {
-                    // 將商品清單轉換成 HTML
                     let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
                     if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
                         order['購買商品清單'].forEach(prod => {
@@ -140,7 +140,7 @@
                                              </li>`;
                         });
                     } else {
-                        productsHtml += `<li style="color: #999;">無商品明細 (可能是系統隱藏)</li>`;
+                        productsHtml += `<li style="color: #999;">無商品明細</li>`;
                     }
                     productsHtml += "</ul>";
 
@@ -152,17 +152,108 @@
                                             <span style="color: green;">獲得: ${order['獲得點數']}</span><br>
                                             <span style="color: red;">使用: ${order['使用點數']}</span>
                                         </td>
-                                        <td class="details">${productsHtml}</td>
+                                        <td>${productsHtml}</td>
                                     </tr>`;
                 });
                 htmlContent += `</table>`;
             } else if (allOrders.length > 0) {
-                htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
-                htmlContent += `<h3 style="color: orange;">⚠️ 找不到符合搜尋條件的訂單</h3>`;
+                htmlContent += `<h3 style="color: orange; margin-top: 30px;">⚠️ 找不到符合條件的訂單</h3>`;
             }
 
             document.getElementById('result').style.color = "black";
             document.getElementById('result').innerHTML = htmlContent;
+        }
+
+        // ==========================================
+        // 🌟 渲染函數 B：全新的「統整模式」！
+        // ==========================================
+        function renderSummaryView(ordersToRender) {
+            let htmlContent = getSummaryHtml();
+
+            if (ordersToRender.length === 0 && allOrders.length > 0) {
+                htmlContent += `<h3 style="color: orange; margin-top: 30px;">⚠️ 找不到符合條件的訂單</h3>`;
+                document.getElementById('result').innerHTML = htmlContent;
+                return;
+            }
+
+            // 1. 建立樞紐分析字典
+            const groupedData = {};
+
+            ordersToRender.forEach(order => {
+                // 用 日期 + 店名 當作群組的鑰匙
+                const key = `${order['日期']}_${order['店名']}`;
+                
+                if (!groupedData[key]) {
+                    groupedData[key] = {
+                        date: order['日期'],
+                        store: order['店名'],
+                        items: {} // 用來記錄商品名稱與總數量
+                    };
+                }
+
+                // 2. 把商品加進群組裡
+                if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
+                    order['購買商品清單'].forEach(prod => {
+                        const name = prod['商品名稱'];
+                        // 🌟 魔法：把 "數量: 3" 裡面的數字 3 用正規表達式抓出來轉成整數
+                        const qtyMatch = prod['數量'].match(/\d+/);
+                        const qty = qtyMatch ? parseInt(qtyMatch[0], 10) : 0;
+
+                        if (!groupedData[key].items[name]) {
+                            groupedData[key].items[name] = 0;
+                        }
+                        // 累加數量！
+                        groupedData[key].items[name] += qty;
+                    });
+                }
+            });
+
+            // 3. 把算好的資料畫成表格
+            htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
+            htmlContent += `<h3>📦 總數合併清單 (自動將同日、同店、同品項加總)</h3>`;
+            htmlContent += `<table><tr><th>日期</th><th>店名</th><th>📦 合併購買商品總計</th></tr>`;
+
+            // 跑迴圈把 groupedData 裡面的東西印出來
+            for (let key in groupedData) {
+                const group = groupedData[key];
+                let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
+                
+                const itemNames = Object.keys(group.items);
+                if (itemNames.length > 0) {
+                    itemNames.forEach(name => {
+                        productsHtml += `<li style="margin-bottom: 5px;">
+                                            <span style="color: #0056b3; font-weight: bold;">${name}</span> 
+                                            <span class="total-qty">(總數: ${group.items[name]})</span>
+                                         </li>`;
+                    });
+                } else {
+                    productsHtml += `<li style="color: #999;">無商品明細</li>`;
+                }
+                productsHtml += "</ul>";
+
+                htmlContent += `<tr>
+                                    <td style="white-space: nowrap;">${group.date}</td>
+                                    <td style="white-space: nowrap;">${group.store}</td>
+                                    <td>${productsHtml}</td>
+                                </tr>`;
+            }
+
+            htmlContent += `</table>`;
+            document.getElementById('result').style.color = "black";
+            document.getElementById('result').innerHTML = htmlContent;
+        }
+
+        // 共用的上方摘要區塊產生器
+        function getSummaryHtml() {
+            let html = "";
+            if (statsSummary.length > 0) {
+                html += `<h2 style="color: green;">${summaryMessage}</h2>`;
+            } else if (errorImage) {
+                html += `<p style="color: red;">後端回報：${summaryMessage}</p>`;
+                html += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
+                html += `<img src="data:image/png;base64,${errorImage}" style="max-width: 100%; border: 3px solid red; border-radius: 8px;"/>`;
+            }
+            return html;
         }
     </script>
 </body>
