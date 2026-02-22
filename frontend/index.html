@@ -38,46 +38,50 @@
 
                 // 🌟 1. 如果成功抓到資料
                 if (data['統計結果'] && data['統計結果'].length > 0) {
-                    htmlContent += `<h2 style="color: green;">${data.message}</h2>`;
-                    
-                    // 區塊 A：統計摘要
-                    htmlContent += `<h3>📊 統計摘要 (共 ${data['資料總筆數']} 筆)</h3>`;
-                    htmlContent += "<ul style='text-align: left; display: inline-block;'>";
-                    data['統計結果'].forEach(item => {
-                        htmlContent += `<li style="font-size: 18px; margin-bottom: 8px;">${item}</li>`;
-                    });
-                    htmlContent += "</ul>";
-
-                    // 區塊 B：詳細明細表格 (把新抓的資料印在這裡！)
-                    if (data['詳細清單'] && data['詳細清單'].length > 0) {
-                        htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
+                    htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
                         htmlContent += `<h3>📜 完整訂單明細</h3>`;
                         htmlContent += `<table>`;
                         htmlContent += `<tr>
                                             <th>日期</th>
                                             <th>店名</th>
                                             <th>金額</th>
-                                            <th>可能訂單編號</th>
-                                            <th>其他明細 (貪婪抓取結果)</th>
+                                            <th>點數資訊</th>
+                                            <th>購買商品明細</th>
                                         </tr>`;
-                        
-                        data['詳細清單'].forEach(order => {
-                            // 如果「其他明細」陣列裡面有東西，就把每一項用換行符號 (<br>) 串起來
-                            let extraText = (order['其他明細'] && order['其他明細'].length > 0) 
-                                            ? order['其他明細'].join("<br>") 
-                                            : "<span style='color: #ccc;'>無額外資訊</span>";
+
+                    // 區塊 B：詳細明細表格 (把新抓的資料印在這裡！)
+                    data['詳細清單'].forEach(order => {
+                        // 🌟 將商品清單轉換成漂亮的 HTML 列表
+                            let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
+                            
+                            if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
+                                order['購買商品清單'].forEach(prod => {
+                                    // 把名稱標成藍色，數量標成灰色
+                                    productsHtml += `<li style="margin-bottom: 5px;">
+                                                        <span style="color: #0056b3; font-weight: bold;">${prod['商品名稱']}</span> 
+                                                        <span style="color: #666;">(${prod['數量']})</span>
+                                                     </li>`;
+                                });
+                            }
+                            else {
+                                productsHtml += `<li style="color: #999;">無商品明細 (可能是系統隱藏)</li>`;
+                            }
+                                productsHtml += "</ul>";
 
                             htmlContent += `<tr>
-                                                <td>${order['日期']}</td>
-                                                <td>${order['店名']}</td>
+                                                <td style="white-space: nowrap;">${order['日期']}</td>
+                                                <td style="white-space: nowrap;">${order['店名']}</td>
                                                 <td class="amount">${order['金額']}</td>
-                                                <td>${order['可能訂單編號']}</td>
-                                                <td class="details">${extraText}</td>
+                                                <td style="white-space: nowrap;">
+                                                    <span style="color: green;">獲得: ${order['獲得點數']}</span><br>
+                                                    <span style="color: red;">使用: ${order['使用點數']}</span>
+                                                </td>
+                                                <td class="details">${productsHtml}</td>
                                             </tr>`;
                         });
                         htmlContent += `</table>`;
                     }
-                } 
+                
                 // 🌟 2. 如果沒抓到資料，但是有回傳報錯截圖
                 else if (data.screenshot_base64) {
                     htmlContent += `<p style="color: red;">後端回報：${data.message} (錯誤: ${data.error || '無'})</p>`;

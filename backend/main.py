@@ -56,7 +56,7 @@ def test_browser():
         
         print("開啟 Watsons 訂單頁...")
         try:
-            driver.get("https://www.watsons.com.tw/my-account/orders")
+            driver.get("https://www.watso/ns.com.tw/my-account/orders")
         except TimeoutException:
             driver.execute_script("window.stop();")
         except Exception:
@@ -107,73 +107,77 @@ def test_browser():
             return {"message": "發生錯誤", "error": "找不到門市交易紀錄頁籤", "screenshot_base64": screenshot_b64}
 
         # ====================
-        # 3. 獲取與解析資料 (🌟 階段三重點)
+        # 3. 獲取與解析資料 (🌟 完美精準解析版)
         # ====================
         print("檢查並載入訂單資料...")
         try:
-            # 確保訂單容器出現
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-            # 給網頁一點時間把 HTML 畫完
             time.sleep(3) 
-            
         except TimeoutException:
             driver.quit()
             return {"message": "查無訂單紀錄", "資料總筆數": 0, "統計結果": [], "詳細清單": []}
 
-        # 🌟 讓 BeautifulSoup 接手解析，速度快又穩！
         page_html = driver.page_source
         soup = BeautifulSoup(page_html, 'html.parser')
         
-        # 找出所有訂單項目
         items = soup.find_all('e2-my-account-order-history-item')
         print(f"✅ 成功抓取 {len(items)} 筆訂單 HTML")
 
         # ====================
-        # 4. 資料整理與統計 (🌟 明細升級版)
+        # 4. 資料整理與統計
         # ====================
         raw_data = []
         stats = defaultdict(lambda: defaultdict(int))
 
         for item in items:
             try:
-                # 優先抓取桌面版排版，若無則抓取手機版排版
                 data_ul = item.find('ul', class_='desktop-order-data')
                 if not data_ul:
                     data_ul = item.find('ul', class_='data')
 
-                # 💡 尋找可能獨立存在的「訂單編號」(通常在標題或特定的 span)
-                # 這裡我們先大範圍抓取 item 內的所有文字，尋找特徵
-                order_number_elem = item.find('span', class_='order-number') # 假設的 class
-                order_number = order_number_elem.text.strip() if order_number_elem else "未抓取"
-
                 if data_ul:
                     lis = data_ul.find_all('li')
-                    if len(lis) >= 3:
+                    # 根據你提供的 HTML，通常會有 5 個項目 (日期, 門市, 金額, 獲得點數, 使用點數)
+                    if len(lis) >= 5:
                         full_date_str = lis[0].text.strip()
                         store_name = lis[1].text.strip()
                         amount = lis[2].text.strip()
+                        points_earned = lis[3].text.strip()
+                        points_used = lis[4].text.strip()
 
                         if not full_date_str: 
                             continue
 
-                        # 萃取日期 (去掉時間)
                         date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
 
-                        # 🌟 貪婪抓取法：把剩下的所有 <li> 資訊都吸進來！
-                        extra_details = []
-                        for i in range(3, len(lis)):
-                            text_content = lis[i].text.strip()
-                            # 過濾掉空白的項目
-                            if text_content: 
-                                extra_details.append(text_content)
+                        # 🌟🌟🌟 開始抓取商品明細 🌟🌟🌟
+                        products = []
+                        # 找出這筆訂單內所有的商品區塊
+                        detail_blocks = item.find_all('div', class_='order-details')
+                        
+                        for block in detail_blocks:
+                            name_elem = block.find('div', class_='product-name')
+                            qty_elem = block.find('div', class_='product-quantity')
+                            
+                            if name_elem and qty_elem:
+                                # 清理多餘的空白與換行符號
+                                p_name = name_elem.text.replace('\n', '').strip()
+                                # 把多個空白縮減成一個空白
+                                p_name = ' '.join(p_name.split()) 
+                                p_qty = qty_elem.text.strip()
+                                
+                                products.append({
+                                    "商品名稱": p_name,
+                                    "數量": p_qty
+                                })
 
-                        # 🌟 將新抓到的細節加入字典中
                         raw_data.append({
                             "日期": full_date_str,
                             "店名": store_name,
                             "金額": amount,
-                            "可能訂單編號": order_number,
-                            "其他明細": extra_details
+                            "獲得點數": points_earned,
+                            "使用點數": points_used,
+                            "購買商品清單": products
                         })
 
                         stats[date_only][store_name] += 1
@@ -181,7 +185,6 @@ def test_browser():
                 print(f"解析單筆資料發生錯誤: {e}")
                 continue
 
-        # 整理最終統計字串
         final_summary = []
         sorted_dates = sorted(stats.keys(), reverse=True)
 
@@ -192,7 +195,7 @@ def test_browser():
         driver.quit()
 
         return {
-            "message": "資料抓取與分析完成！(包含進階明細)",
+            "message": "資料抓取與分析完成！",
             "資料總筆數": len(raw_data),
             "統計結果": final_summary,
             "詳細清單": raw_data
