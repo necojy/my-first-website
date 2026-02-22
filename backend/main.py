@@ -56,7 +56,7 @@ def test_browser():
         
         print("開啟 Watsons 訂單頁...")
         try:
-            driver.get("https://www.watso/ns.com.tw/my-account/orders")
+            driver.get("https://www.watsons.com.tw/my-account/orders")
         except TimeoutException:
             driver.execute_script("window.stop();")
         except Exception:
