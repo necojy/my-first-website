@@ -44,9 +44,13 @@
         async function sendData() {
             const backendUrl = "https://necojy-watsons-bot.hf.space/api/open_browser";
             
+            // 🌟 狀態重置：按下按鈕時，立刻顯示等待文字、清空搜尋框、並隱藏搜尋區塊！
             document.getElementById('result').style.color = "blue";
             document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 15~30 秒...";
-            document.getElementById('search-container').style.display = "none"; // 抓取時隱藏搜尋框
+            
+            document.getElementById('searchDate').value = "";   // 清空日期搜尋
+            document.getElementById('searchStore').value = "";  // 清空店名搜尋
+            document.getElementById('search-container').style.display = "none"; // 嚴格隱藏
             
             try {
                 const response = await fetch(backendUrl);
@@ -58,12 +62,12 @@
                 summaryMessage = data.message || "";
                 errorImage = data.screenshot_base64 || "";
 
-                // 如果有抓到明細，就把搜尋框顯示出來
+                // 🌟 只有當機器人成功抓回資料，且資料筆數大於 0 時，才把搜尋框顯示出來！
                 if (allOrders.length > 0) {
                     document.getElementById('search-container').style.display = "inline-block";
                 }
 
-                // 呼叫渲染畫面的函數 (預設顯示全部資料)
+                // 呼叫渲染畫面的函數
                 renderView(allOrders);
 
             } catch (error) {

@@ -183,7 +183,7 @@ def test_browser():
                                 })
 
                         raw_data.append({
-                            "日期": full_date_str,
+                            "日期": date_only,  # 🌟 修正點：這裡改成 date_only！
                             "店名": store_name,
                             "金額": amount,
                             "獲得點數": points_earned,
