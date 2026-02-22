@@ -6,10 +6,15 @@
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; }
         button { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; }
+        
+        /* 搜尋框樣式 */
+        #search-container { margin-top: 20px; display: none; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: inline-block; }
+        .search-input { padding: 10px; font-size: 16px; margin: 0 10px; border: 1px solid #ccc; border-radius: 4px; width: 200px; }
+        
         #result { margin-top: 30px; }
         
-        /* 替表格加上一些簡單漂亮的樣式 */
-        table { width: 90%; margin: 20px auto; border-collapse: collapse; text-align: left; }
+        /* 表格樣式 */
+        table { width: 95%; margin: 20px auto; border-collapse: collapse; text-align: left; }
         th { background-color: #f2f2f2; padding: 12px; border: 1px solid #ddd; }
         td { padding: 12px; border: 1px solid #ddd; vertical-align: top; }
         .amount { color: #d9534f; font-weight: bold; }
@@ -19,97 +24,141 @@
 <body>
     <h1>🤖 屈臣氏雲端隱形機器人</h1>
     
-    <button onclick="sendData()">呼叫機器人出動！</button>
+    <button onclick="sendData()" id="fetchBtn">呼叫機器人出動！</button>
+    
+    <div id="search-container">
+        <strong>🔍 快速搜尋：</strong>
+        <input type="text" id="searchDate" class="search-input" placeholder="搜尋日期 (例: 15-Feb)" onkeyup="filterOrders()">
+        <input type="text" id="searchStore" class="search-input" placeholder="搜尋店名 (例: 南屯)" onkeyup="filterOrders()">
+    </div>
     
     <div id="result" style="font-weight: bold;"></div>
 
     <script>
+        // 🌟 全域變數：用來記住後端傳來的所有資料
+        let allOrders = []; 
+        let statsSummary = [];
+        let summaryMessage = "";
+        let errorImage = "";
+
         async function sendData() {
             const backendUrl = "https://necojy-watsons-bot.hf.space/api/open_browser";
             
             document.getElementById('result').style.color = "blue";
-            document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 15~20 秒...";
+            document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 15~30 秒...";
+            document.getElementById('search-container').style.display = "none"; // 抓取時隱藏搜尋框
             
             try {
                 const response = await fetch(backendUrl);
                 const data = await response.json();
                 
-                let htmlContent = "";
+                // 將後端資料存入全域變數
+                allOrders = data['詳細清單'] || [];
+                statsSummary = data['統計結果'] || [];
+                summaryMessage = data.message || "";
+                errorImage = data.screenshot_base64 || "";
 
-                // 🌟 1. 如果成功抓到資料
-                if (data['統計結果'] && data['統計結果'].length > 0) {
-                    htmlContent += `<h2 style="color: green;">${data.message}</h2>`;
-                    
-                    // 區塊 A：統計摘要
-                    htmlContent += `<h3>📊 統計摘要 (共 ${data['資料總筆數']} 筆)</h3>`;
-                    htmlContent += "<ul style='text-align: left; display: inline-block;'>";
-                    data['統計結果'].forEach(item => {
-                        htmlContent += `<li style="font-size: 18px; margin-bottom: 8px;">${item}</li>`;
-                    });
-                    htmlContent += "</ul>";
-
-                    // 區塊 B：詳細明細表格 (把新抓的資料印在這裡！)
-                    if (data['詳細清單'] && data['詳細清單'].length > 0) {
-                        htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
-                        htmlContent += `<h3>📜 完整訂單明細</h3>`;
-                        htmlContent += `<table>`;
-                        htmlContent += `<tr>
-                                            <th>日期</th>
-                                            <th>店名</th>
-                                            <th>金額</th>
-                                            <th>點數資訊</th>
-                                            <th>購買商品明細</th>
-                                        </tr>`;
-                        
-                        data['詳細清單'].forEach(order => {
-                            // 🌟 將商品清單轉換成漂亮的 HTML 列表
-                            let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
-                            
-                            if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
-                                order['購買商品清單'].forEach(prod => {
-                                    // 把名稱標成藍色，數量標成灰色
-                                    productsHtml += `<li style="margin-bottom: 5px;">
-                                                        <span style="color: #0056b3; font-weight: bold;">${prod['商品名稱']}</span> 
-                                                        <span style="color: #666;">(${prod['數量']})</span>
-                                                     </li>`;
-                                });
-                            } else {
-                                productsHtml += `<li style="color: #999;">無商品明細 (可能是系統隱藏)</li>`;
-                            }
-                            productsHtml += "</ul>";
-
-                            htmlContent += `<tr>
-                                                <td style="white-space: nowrap;">${order['日期']}</td>
-                                                <td style="white-space: nowrap;">${order['店名']}</td>
-                                                <td class="amount">${order['金額']}</td>
-                                                <td style="white-space: nowrap;">
-                                                    <span style="color: green;">獲得: ${order['獲得點數']}</span><br>
-                                                    <span style="color: red;">使用: ${order['使用點數']}</span>
-                                                </td>
-                                                <td class="details">${productsHtml}</td>
-                                            </tr>`;
-                        });
-                        htmlContent += `</table>`;
-                    }
-                } 
-                // 🌟 2. 如果沒抓到資料，但是有回傳報錯截圖
-                else if (data.screenshot_base64) {
-                    htmlContent += `<p style="color: red;">後端回報：${data.message} (錯誤: ${data.error || '無'})</p>`;
-                    htmlContent += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
-                    htmlContent += `<img src="data:image/png;base64,${data.screenshot_base64}" style="max-width: 100%; border: 3px solid red; border-radius: 8px;"/>`;
+                // 如果有抓到明細，就把搜尋框顯示出來
+                if (allOrders.length > 0) {
+                    document.getElementById('search-container').style.display = "inline-block";
                 }
-                // 🌟 3. 其他狀況
-                else {
-                    htmlContent += `<p style="color: orange;">後端回報狀況：${JSON.stringify(data)}</p>`;
-                }
-                
-                document.getElementById('result').style.color = "black";
-                document.getElementById('result').innerHTML = htmlContent;
+
+                // 呼叫渲染畫面的函數 (預設顯示全部資料)
+                renderView(allOrders);
 
             } catch (error) {
                 document.getElementById('result').style.color = "red";
                 document.getElementById('result').innerText = "連線失敗，請檢查網址或後端狀態";
             }
+        }
+
+        // 🌟 新增：過濾資料的函數 (當你在輸入框打字時會自動觸發)
+        function filterOrders() {
+            // 取得輸入框的值，並轉成小寫方便比對
+            const dateKeyword = document.getElementById('searchDate').value.toLowerCase();
+            const storeKeyword = document.getElementById('searchStore').value.toLowerCase();
+
+            // 從 allOrders 篩選出符合條件的訂單
+            const filteredData = allOrders.filter(order => {
+                const matchDate = order['日期'].toLowerCase().includes(dateKeyword);
+                const matchStore = order['店名'].toLowerCase().includes(storeKeyword);
+                return matchDate && matchStore; // 必須同時符合日期與店名條件
+            });
+
+            // 拿過濾後的資料重新畫表格
+            renderView(filteredData);
+        }
+
+        // 🌟 把畫面的邏輯獨立出來
+        function renderView(ordersToRender) {
+            let htmlContent = "";
+
+            // 1. 畫出上方的總結與統計 (只在最一開始或有資料時顯示)
+            if (statsSummary.length > 0) {
+                htmlContent += `<h2 style="color: green;">${summaryMessage}</h2>`;
+                htmlContent += `<h3>📊 統計摘要 (共 ${statsSummary.length} 筆門市紀錄)</h3>`;
+                htmlContent += "<ul style='text-align: left; display: inline-block;'>";
+                statsSummary.forEach(item => {
+                    htmlContent += `<li style="font-size: 18px; margin-bottom: 8px;">${item}</li>`;
+                });
+                htmlContent += "</ul>";
+            } 
+            else if (errorImage) {
+                // 如果有錯誤截圖
+                htmlContent += `<p style="color: red;">後端回報：${summaryMessage}</p>`;
+                htmlContent += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
+                htmlContent += `<img src="data:image/png;base64,${errorImage}" style="max-width: 100%; border: 3px solid red; border-radius: 8px;"/>`;
+                document.getElementById('result').innerHTML = htmlContent;
+                return;
+            }
+
+            // 2. 畫出下方的表格
+            if (ordersToRender.length > 0) {
+                htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
+                htmlContent += `<h3>📜 訂單明細 (顯示 ${ordersToRender.length} 筆)</h3>`;
+                htmlContent += `<table>`;
+                htmlContent += `<tr>
+                                    <th>日期</th>
+                                    <th>店名</th>
+                                    <th>金額</th>
+                                    <th>點數資訊</th>
+                                    <th>購買商品明細</th>
+                                </tr>`;
+
+                ordersToRender.forEach(order => {
+                    // 將商品清單轉換成 HTML
+                    let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
+                    if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
+                        order['購買商品清單'].forEach(prod => {
+                            productsHtml += `<li style="margin-bottom: 5px;">
+                                                <span style="color: #0056b3; font-weight: bold;">${prod['商品名稱']}</span> 
+                                                <span style="color: #666;">(${prod['數量']})</span>
+                                             </li>`;
+                        });
+                    } else {
+                        productsHtml += `<li style="color: #999;">無商品明細 (可能是系統隱藏)</li>`;
+                    }
+                    productsHtml += "</ul>";
+
+                    htmlContent += `<tr>
+                                        <td style="white-space: nowrap;">${order['日期']}</td>
+                                        <td style="white-space: nowrap;">${order['店名']}</td>
+                                        <td class="amount">${order['金額']}</td>
+                                        <td style="white-space: nowrap;">
+                                            <span style="color: green;">獲得: ${order['獲得點數']}</span><br>
+                                            <span style="color: red;">使用: ${order['使用點數']}</span>
+                                        </td>
+                                        <td class="details">${productsHtml}</td>
+                                    </tr>`;
+                });
+                htmlContent += `</table>`;
+            } else if (allOrders.length > 0) {
+                htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
+                htmlContent += `<h3 style="color: orange;">⚠️ 找不到符合搜尋條件的訂單</h3>`;
+            }
+
+            document.getElementById('result').style.color = "black";
+            document.getElementById('result').innerHTML = htmlContent;
         }
     </script>
 </body>
