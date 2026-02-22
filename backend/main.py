@@ -39,19 +39,6 @@ def test_browser():
     if not accounts:
         return {"message": "發生錯誤", "error": "找不到任何帳號或密碼，請檢查環境變數設定"}
 
-    options = uc.ChromeOptions()
-    options.add_argument("--headless=new")  
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-    options.add_argument("--lang=zh-TW")
-    options.add_argument("--accept-lang=zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
-    options.add_argument("--disable-http2") 
-    options.add_argument("--ignore-certificate-errors")
-    options.page_load_strategy = 'eager'
-
     all_raw_data = []  
     stats = defaultdict(lambda: defaultdict(int))
     error_screenshot = ""
@@ -62,7 +49,22 @@ def test_browser():
         try:
             print(f"啟動【全新】瀏覽器，準備處理: {acc['label']}")
             
-            # 🌟 關鍵修正：每個帳號都開一台全新的瀏覽器！
+            # 🌟🌟🌟 關鍵修正：把 options 的設定搬進來迴圈裡面！
+            # 讓每個帳號都有一份「全新獨立」的設定檔，才不會報錯不能重複使用
+            options = uc.ChromeOptions()
+            options.add_argument("--headless=new")  
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
+            options.add_argument("--window-size=1920,1080")
+            options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+            options.add_argument("--lang=zh-TW")
+            options.add_argument("--accept-lang=zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
+            options.add_argument("--disable-http2") 
+            options.add_argument("--ignore-certificate-errors")
+            options.page_load_strategy = 'eager'
+            
+            # 🌟 使用全新的 options 啟動瀏覽器
             driver = uc.Chrome(options=options)
             wait = WebDriverWait(driver, 20)
             driver.set_page_load_timeout(20)
@@ -154,7 +156,6 @@ def test_browser():
             continue 
             
         finally:
-            # 🌟 關鍵修正：不管這個帳號成功還是失敗，最後一定把這台瀏覽器徹底關閉、消滅！
             if driver:
                 try:
                     driver.quit()
