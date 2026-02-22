@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import os
+import tempfile
+import shutil
 from dotenv import load_dotenv
 from collections import defaultdict
 from bs4 import BeautifulSoup 
@@ -24,7 +26,6 @@ app.add_middleware(
 
 @app.get("/api/open_browser")
 def test_browser():
-    # 🌟 自動偵測多組帳號
     accounts = []
     
     if os.getenv("WATSONS_USERNAME") and os.getenv("WATSONS_PASSWORD"):
@@ -43,14 +44,14 @@ def test_browser():
     stats = defaultdict(lambda: defaultdict(int))
     error_screenshot = ""
 
-    # 🌟 迴圈開始：依序處理每個帳號
     for acc in accounts:
-        driver = None  # 確保每個帳號開始時都是空的
+        driver = None
+        # 🌟 1. 建立一個絕對乾淨的專屬暫存資料夾
+        temp_dir = tempfile.mkdtemp()
+        
         try:
-            print(f"啟動【全新】瀏覽器，準備處理: {acc['label']}")
+            print(f"🚀 啟動【完全隔離】瀏覽器，準備處理: {acc['label']}")
             
-            # 🌟🌟🌟 關鍵修正：把 options 的設定搬進來迴圈裡面！
-            # 讓每個帳號都有一份「全新獨立」的設定檔，才不會報錯不能重複使用
             options = uc.ChromeOptions()
             options.add_argument("--headless=new")  
             options.add_argument("--no-sandbox")
@@ -64,7 +65,9 @@ def test_browser():
             options.add_argument("--ignore-certificate-errors")
             options.page_load_strategy = 'eager'
             
-            # 🌟 使用全新的 options 啟動瀏覽器
+            # 🌟 強制 Chrome 使用我們剛剛建立的乾淨資料夾
+            options.add_argument(f"--user-data-dir={temp_dir}")
+            
             driver = uc.Chrome(options=options)
             wait = WebDriverWait(driver, 20)
             driver.set_page_load_timeout(20)
@@ -77,7 +80,6 @@ def test_browser():
                 pass
             time.sleep(3)
     
-            # 1. 登入流程 
             username_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")))
             username_input.clear()
             username_input.send_keys(acc["user"]) 
@@ -91,12 +93,10 @@ def test_browser():
             password_input.send_keys(Keys.RETURN)
             time.sleep(12) 
 
-            # 2. 切換門市交易紀錄
             store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
             driver.execute_script("arguments[0].click();", store_records_tab)
             time.sleep(5) 
 
-            # 3. 獲取與解析資料
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
             time.sleep(3) 
 
@@ -119,7 +119,6 @@ def test_browser():
                         points_used = lis[4].text.strip()
 
                         if not full_date_str: continue
-
                         date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
 
                         products = []
@@ -147,9 +146,11 @@ def test_browser():
                         stats[date_only][store_name] += 1
 
         except Exception as e:
-            print(f"{acc['label']} 發生錯誤跳過: {e}")
+            # 🌟 加上更詳細的錯誤日誌，並印出當下網址
+            print(f"❌ {acc['label']} 發生錯誤跳過: {type(e).__name__} - {e}")
             if driver:
                 try:
+                    print(f"❌ 錯誤發生時的網址: {driver.current_url}")
                     error_screenshot = driver.get_screenshot_as_base64()
                 except:
                     pass
@@ -161,10 +162,16 @@ def test_browser():
                     driver.quit()
                 except:
                     pass
+            # 🌟 2. 徹底刪除這個帳號的暫存資料夾
+            try:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            except:
+                pass
+            
+            # 🌟 3. 強迫休息 8 秒，假裝是人類換帳號
+            print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
+            time.sleep(8)
 
-    # ==================================
-    # 迴圈結束，整理最終統計回傳
-    # ==================================
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
     for date in sorted_dates:
