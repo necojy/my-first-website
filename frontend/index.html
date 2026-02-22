@@ -120,15 +120,23 @@
         }
 
         // ==========================================
-        // 渲染函數 A：原始的「明細模式」
+        // 渲染函數 A：「明細模式」(新增帳號欄位)
         // ==========================================
         function renderDetailView(ordersToRender) {
-            let htmlContent = getSummaryHtml(); // 取得上方的總結文字
+            let htmlContent = getSummaryHtml(); 
 
             if (ordersToRender.length > 0) {
                 htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
                 htmlContent += `<h3>📜 訂單明細 (顯示 ${ordersToRender.length} 筆紀錄)</h3>`;
-                htmlContent += `<table><tr><th>日期</th><th>店名</th><th>金額</th><th>點數資訊</th><th>購買商品明細</th></tr>`;
+                // 🌟 表頭新增「帳號」
+                htmlContent += `<table><tr>
+                                    <th style="background-color: #e9ecef;">帳號</th>
+                                    <th>日期</th>
+                                    <th>店名</th>
+                                    <th>金額</th>
+                                    <th>點數資訊</th>
+                                    <th>購買商品明細</th>
+                                </tr>`;
 
                 ordersToRender.forEach(order => {
                     let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
@@ -145,6 +153,7 @@
                     productsHtml += "</ul>";
 
                     htmlContent += `<tr>
+                                        <td style="white-space: nowrap; color: #555; font-weight: bold; background-color: #f8f9fa;">${order['歸屬帳號']}</td>
                                         <td style="white-space: nowrap;">${order['日期']}</td>
                                         <td style="white-space: nowrap;">${order['店名']}</td>
                                         <td class="amount">${order['金額']}</td>
