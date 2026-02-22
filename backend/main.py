@@ -23,7 +23,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+# //
 @app.get("/api/open_browser")
 def test_browser():
     accounts = []
