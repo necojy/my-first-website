@@ -129,7 +129,7 @@ def test_browser():
         print(f"✅ 成功抓取 {len(items)} 筆訂單 HTML")
 
         # ====================
-        # 4. 資料整理與統計
+        # 4. 資料整理與統計 (🌟 明細升級版)
         # ====================
         raw_data = []
         stats = defaultdict(lambda: defaultdict(int))
@@ -140,6 +140,11 @@ def test_browser():
                 data_ul = item.find('ul', class_='desktop-order-data')
                 if not data_ul:
                     data_ul = item.find('ul', class_='data')
+
+                # 💡 尋找可能獨立存在的「訂單編號」(通常在標題或特定的 span)
+                # 這裡我們先大範圍抓取 item 內的所有文字，尋找特徵
+                order_number_elem = item.find('span', class_='order-number') # 假設的 class
+                order_number = order_number_elem.text.strip() if order_number_elem else "未抓取"
 
                 if data_ul:
                     lis = data_ul.find_all('li')
@@ -154,14 +159,26 @@ def test_browser():
                         # 萃取日期 (去掉時間)
                         date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
 
+                        # 🌟 貪婪抓取法：把剩下的所有 <li> 資訊都吸進來！
+                        extra_details = []
+                        for i in range(3, len(lis)):
+                            text_content = lis[i].text.strip()
+                            # 過濾掉空白的項目
+                            if text_content: 
+                                extra_details.append(text_content)
+
+                        # 🌟 將新抓到的細節加入字典中
                         raw_data.append({
                             "日期": full_date_str,
                             "店名": store_name,
-                            "金額": amount
+                            "金額": amount,
+                            "可能訂單編號": order_number,
+                            "其他明細": extra_details
                         })
 
                         stats[date_only][store_name] += 1
-            except Exception:
+            except Exception as e:
+                print(f"解析單筆資料發生錯誤: {e}")
                 continue
 
         # 整理最終統計字串
@@ -175,7 +192,7 @@ def test_browser():
         driver.quit()
 
         return {
-            "message": "資料抓取與分析完成！",
+            "message": "資料抓取與分析完成！(包含進階明細)",
             "資料總筆數": len(raw_data),
             "統計結果": final_summary,
             "詳細清單": raw_data
