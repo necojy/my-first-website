@@ -155,53 +155,24 @@ def test_browser():
             # 🌟 2. 跳轉並抓取優惠卷 (精準點擊版)
             # ==========================================
             print(f"🎟️ {acc['label']} 準備抓取優惠卷...")
+            
+            # 🛡️ 根據你找到的 HTML，精準鎖定 a 標籤的 href 屬性！
             try:
-                # 🛡️ 根據你找到的 HTML，精準鎖定 a 標籤的 href 屬性！
-                try:
-                    driver.get("https://www.watsons.com.tw/my-account/orders")
-                    print(f"👉 成功點擊「折價券/提貨券」選單，等待畫面載入...")
-                except TimeoutException:
-                    print(f"⚠️ {acc['label']} 找不到左側的折價券按鈕...")
-                
-                time.sleep(6) # 乖乖等 6 秒讓畫面順滑切換過去
-                
-                
+                driver.get("https://www.watsons.com.tw/my-account/ecouponsEvouchers")
+                print(f"👉 成功點擊「折價券/提貨券」選單，等待畫面載入...")
+                c_screenshot = driver.get_screenshot_as_base64()
+                all_coupons_data.append({
+                    "歸屬帳號": acc["label"],
+                    "名稱": "⚠️ 查無優惠卷 (請看下方機器人視角截圖)",
+                    "到期日": "-",
+                    "狀態": "無資料",
+                    "截圖": c_screenshot 
+                })
 
-                coupon_html = driver.page_source
-                soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
-                coupon_items = soup_coupon.find_all('div', class_='coupon-item')
-                
-                if len(coupon_items) == 0:
-                    # 📸 萬一還是找不到，拍下案發現場
-                    print(f"📸 {acc['label']} 找不到優惠卷，拍照存證！")
-                    c_screenshot = driver.get_screenshot_as_base64()
-                    all_coupons_data.append({
-                        "歸屬帳號": acc["label"],
-                        "名稱": "⚠️ 查無優惠卷 (請看下方機器人視角截圖)",
-                        "到期日": "-",
-                        "狀態": "無資料",
-                        "截圖": c_screenshot 
-                    })
-                else:
-                    for c in coupon_items:
-                        name_elem = c.find('div', class_='name')
-                        date_elem = c.find('div', class_='date')
-                        expiring_elem = c.find('span', class_='expiring')
-                        
-                        if name_elem and date_elem:
-                            c_name = name_elem.text.replace('\n', '').strip()
-                            c_date = date_elem.text.replace('\n', '').strip()
-                            c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
-                            
-                            all_coupons_data.append({
-                                "歸屬帳號": acc["label"],
-                                "名稱": c_name,
-                                "到期日": c_date,
-                                "狀態": c_status
-                            })
-                print(f"✅ {acc['label']} 優惠卷區域處理完畢！共抓到 {len(coupon_items)} 張。")
-            except Exception as e:
-                print(f"⚠️ 抓取優惠卷失敗: {e}")
+            except TimeoutException:
+                print(f"⚠️ {acc['label']} 找不到左側的折價券按鈕...")
+            
+            
 
         except Exception as e:
             print(f"❌ {acc['label']} 發生錯誤跳過: {type(e).__name__} - {e}")
