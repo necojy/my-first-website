@@ -97,14 +97,14 @@ def test_browser():
             time.sleep(1)
             
             password_input.send_keys(Keys.RETURN)
-            time.sleep(12) 
+            time.sleep(6) 
 
             store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
             driver.execute_script("arguments[0].click();", store_records_tab)
-            time.sleep(5) 
+            time.sleep(3) 
 
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-            time.sleep(3) 
+            time.sleep(2) 
 
             page_html = driver.page_source
             soup = BeautifulSoup(page_html, 'html.parser')
@@ -172,7 +172,7 @@ def test_browser():
             except:
                 pass
             print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
-            time.sleep(8)
+            time.sleep(5)
 
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
