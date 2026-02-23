@@ -35,15 +35,15 @@ def test_browser():
     if u1 and p1:
         accounts.append({"user": u1, "pass": p1, "label": l1})
 
-    for i in range(2, 21):
-        u = os.getenv(f"WATSONS_USERNAME_{i}")
-        p = os.getenv(f"WATSONS_PASSWORD_{i}")
-        l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
-        if u and p:
-            accounts.append({"user": u, "pass": p, "label": l})
+    # for i in range(2, 21):
+    #     u = os.getenv(f"WATSONS_USERNAME_{i}")
+    #     p = os.getenv(f"WATSONS_PASSWORD_{i}")
+    #     l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
+    #     if u and p:
+    #         accounts.append({"user": u, "pass": p, "label": l})
 
-    if not accounts:
-        return {"message": "發生錯誤", "error": "找不到任何帳號或密碼，請檢查環境變數設定"}
+    # if not accounts:
+    #     return {"message": "發生錯誤", "error": "找不到任何帳號或密碼，請檢查環境變數設定"}
 
     all_raw_data = []  
     all_coupons_data = [] 
