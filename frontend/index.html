@@ -5,7 +5,12 @@
     <title>屈臣氏訂單與優惠卷系統</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; }
-        .primary-btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; }
+        
+        /* 替三個按鈕設定不同的顏色，提升 UX 體驗 */
+        .btn-orders { padding: 15px 25px; font-size: 16px; cursor: pointer; background-color: #f39c12; color: white; border: none; border-radius: 5px; margin: 5px; }
+        .btn-coupons { padding: 15px 25px; font-size: 16px; cursor: pointer; background-color: #e74c3c; color: white; border: none; border-radius: 5px; margin: 5px; }
+        .btn-both { padding: 15px 25px; font-size: 16px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; margin: 5px; }
+        
         .summary-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 5px; margin-left: 10px; transition: 0.3s; }
         .summary-btn.active { background-color: #ffc107; color: black; font-weight: bold; }
         
@@ -20,7 +25,6 @@
         .amount { color: #d9534f; font-weight: bold; }
         .total-qty { color: #d9534f; font-weight: bold; }
         
-        /* 優惠卷專屬樣式 */
         .coupon-warning { color: #d9534f; font-weight: bold; }
         .coupon-normal { color: #28a745; font-weight: bold; }
     </style>
@@ -28,7 +32,11 @@
 <body>
     <h1>🤖 屈臣氏雲端隱形機器人</h1>
     
-    <button class="primary-btn" onclick="sendData()" id="fetchBtn">呼叫機器人出動！</button>
+    <div>
+        <button class="btn-orders" onclick="sendData('orders')">🛒 只抓取門市消費紀錄</button>
+        <button class="btn-coupons" onclick="sendData('coupons')">🎟️ 只抓取可用優惠卷</button>
+        <button class="btn-both" onclick="sendData('both')">🚀 兩者皆抓 (需較長等待)</button>
+    </div>
     
     <div id="control-panel" style="display: none;">
         <strong>🔍 快速搜尋：</strong>
@@ -41,17 +49,24 @@
 
     <script>
         let allOrders = []; 
-        let allCoupons = []; // 🌟 新增：存放所有優惠卷
+        let allCoupons = []; 
         let statsSummary = [];
         let summaryMessage = "";
-        let errorImage = "";
         let isSummaryMode = false;
 
-        async function sendData() {
-            const backendUrl = "https://necojy-watsons-bot.hf.space/api/open_browser";
+        // 🌟 新增接收 action 參數
+        async function sendData(action) {
+            // 根據不同按鈕，加上 ?action=...
+            const backendUrl = `https://necojy-watsons-bot.hf.space/api/open_browser?action=${action}`;
             
+            // 根據任務顯示不同的等待提示
+            let waitMsg = "";
+            if(action === 'orders') waitMsg = "機器人正在抓取「消費紀錄」，請稍候約 30 秒...";
+            else if(action === 'coupons') waitMsg = "機器人正在抓取「優惠卷」，請稍候約 30 秒...";
+            else waitMsg = "機器人正在進行「全面抓取」，請稍候約 50~60 秒...";
+
             document.getElementById('result').style.color = "blue";
-            document.getElementById('result').innerText = "機器人正在雲端開啟網頁，包含雙帳號與優惠卷抓取，請稍候約 40~60 秒...";
+            document.getElementById('result').innerText = waitMsg;
             
             document.getElementById('searchDate').value = "";   
             document.getElementById('searchStore').value = "";  
@@ -64,14 +79,19 @@
                 const response = await fetch(backendUrl);
                 const data = await response.json();
                 
+                // 每次抓取前先清空舊資料，避免畫面殘留
                 allOrders = data['詳細清單'] || [];
-                allCoupons = data['優惠卷清單'] || []; // 🌟 接收後端傳來的優惠卷
+                allCoupons = data['優惠卷清單'] || []; 
                 statsSummary = data['統計結果'] || [];
                 summaryMessage = data.message || "";
-                errorImage = data.screenshot_base64 || "";
 
                 if (allOrders.length > 0 || allCoupons.length > 0) {
-                    document.getElementById('control-panel').style.display = "inline-block";
+                    // 如果有抓到訂單，才顯示搜尋面板
+                    if(allOrders.length > 0) {
+                        document.getElementById('control-panel').style.display = "inline-block";
+                    } else {
+                        document.getElementById('control-panel').style.display = "none";
+                    }
                 }
 
                 filterOrders(); 
@@ -116,9 +136,6 @@
             }
         }
 
-        // ==========================================
-        // 🌟 專門用來畫「優惠卷表格」(支援顯示報錯照片)
-        // ==========================================
         function getCouponsHtml() {
             if (allCoupons.length === 0) return "";
             
@@ -135,10 +152,9 @@
                 let statusClass = coupon['狀態'].includes("即將到期") ? "coupon-warning" : "coupon-normal";
                 let nameHtml = `<span style="font-weight:bold;">${coupon['名稱']}</span>`;
                 
-                // 📸 如果包裹裡有照片，就把它畫出來！
                 if (coupon['截圖']) {
                     nameHtml += `<br><img src="data:image/png;base64,${coupon['截圖']}" style="max-width: 100%; max-height: 400px; border: 3px solid red; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);"/>`;
-                    statusClass = "coupon-warning"; // 標紅字
+                    statusClass = "coupon-warning"; 
                 }
                 
                 html += `<tr>
@@ -154,8 +170,6 @@
 
         function renderDetailView(ordersToRender) {
             let htmlContent = getSummaryHtml(); 
-            
-            // 🌟 在畫訂單之前，先把優惠卷表格塞進去！
             htmlContent += getCouponsHtml();
 
             if (ordersToRender.length > 0) {
@@ -207,8 +221,6 @@
 
         function renderSummaryView(ordersToRender) {
             let htmlContent = getSummaryHtml();
-            
-            // 🌟 統整模式下，一樣把優惠卷印出來
             htmlContent += getCouponsHtml();
 
             if (ordersToRender.length === 0 && allOrders.length > 0) {
@@ -217,68 +229,66 @@
                 return;
             }
 
-            const groupedData = {};
+            if (ordersToRender.length > 0) {
+                const groupedData = {};
 
-            ordersToRender.forEach(order => {
-                const key = `${order['日期']}_${order['店名']}`;
-                if (!groupedData[key]) {
-                    groupedData[key] = { date: order['日期'], store: order['店名'], items: {} };
+                ordersToRender.forEach(order => {
+                    const key = `${order['日期']}_${order['店名']}`;
+                    if (!groupedData[key]) {
+                        groupedData[key] = { date: order['日期'], store: order['店名'], items: {} };
+                    }
+
+                    if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
+                        order['購買商品清單'].forEach(prod => {
+                            const name = prod['商品名稱'];
+                            const qtyMatch = prod['數量'].match(/\d+/);
+                            const qty = qtyMatch ? parseInt(qtyMatch[0], 10) : 0;
+
+                            if (!groupedData[key].items[name]) {
+                                groupedData[key].items[name] = 0;
+                            }
+                            groupedData[key].items[name] += qty;
+                        });
+                    }
+                });
+
+                htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
+                htmlContent += `<h3>📦 總數合併清單 (自動將同日、同店、同品項加總)</h3>`;
+                htmlContent += `<table><tr><th>日期</th><th>店名</th><th>📦 合併購買商品總計</th></tr>`;
+
+                for (let key in groupedData) {
+                    const group = groupedData[key];
+                    let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
+                    const itemNames = Object.keys(group.items);
+                    
+                    if (itemNames.length > 0) {
+                        itemNames.forEach(name => {
+                            productsHtml += `<li style="margin-bottom: 5px;">
+                                                <span style="color: #0056b3; font-weight: bold;">${name}</span> 
+                                                <span class="total-qty">(總數: ${group.items[name]})</span>
+                                             </li>`;
+                        });
+                    } else {
+                        productsHtml += `<li style="color: #999;">無商品明細</li>`;
+                    }
+                    productsHtml += "</ul>";
+
+                    htmlContent += `<tr>
+                                        <td style="white-space: nowrap;">${group.date}</td>
+                                        <td style="white-space: nowrap;">${group.store}</td>
+                                        <td>${productsHtml}</td>
+                                    </tr>`;
                 }
-
-                if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
-                    order['購買商品清單'].forEach(prod => {
-                        const name = prod['商品名稱'];
-                        const qtyMatch = prod['數量'].match(/\d+/);
-                        const qty = qtyMatch ? parseInt(qtyMatch[0], 10) : 0;
-
-                        if (!groupedData[key].items[name]) {
-                            groupedData[key].items[name] = 0;
-                        }
-                        groupedData[key].items[name] += qty;
-                    });
-                }
-            });
-
-            htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
-            htmlContent += `<h3>📦 總數合併清單 (自動將同日、同店、同品項加總)</h3>`;
-            htmlContent += `<table><tr><th>日期</th><th>店名</th><th>📦 合併購買商品總計</th></tr>`;
-
-            for (let key in groupedData) {
-                const group = groupedData[key];
-                let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
-                const itemNames = Object.keys(group.items);
-                
-                if (itemNames.length > 0) {
-                    itemNames.forEach(name => {
-                        productsHtml += `<li style="margin-bottom: 5px;">
-                                            <span style="color: #0056b3; font-weight: bold;">${name}</span> 
-                                            <span class="total-qty">(總數: ${group.items[name]})</span>
-                                         </li>`;
-                    });
-                } else {
-                    productsHtml += `<li style="color: #999;">無商品明細</li>`;
-                }
-                productsHtml += "</ul>";
-
-                htmlContent += `<tr>
-                                    <td style="white-space: nowrap;">${group.date}</td>
-                                    <td style="white-space: nowrap;">${group.store}</td>
-                                    <td>${productsHtml}</td>
-                                </tr>`;
+                htmlContent += `</table>`;
             }
-            htmlContent += `</table>`;
             document.getElementById('result').style.color = "black";
             document.getElementById('result').innerHTML = htmlContent;
         }
 
         function getSummaryHtml() {
             let html = "";
-            if (statsSummary.length > 0) {
+            if (summaryMessage) {
                 html += `<h2 style="color: green;">${summaryMessage}</h2>`;
-            } else if (errorImage) {
-                html += `<p style="color: red;">後端回報：${summaryMessage}</p>`;
-                html += `<br><br><h3 style="color:red;">🤖 機器人當下看到的畫面：</h3>`;
-                html += `<img src="data:image/png;base64,${errorImage}" style="max-width: 100%; border: 3px solid red; border-radius: 8px;"/>`;
             }
             return html;
         }

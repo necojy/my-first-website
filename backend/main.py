@@ -24,8 +24,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 🌟 這裡新增了 action 參數，預設為 "both"
 @app.get("/api/open_browser")
-def test_browser():
+def test_browser(action: str = "both"):
     accounts = []
     
     u1 = os.getenv("WATSONS_USERNAME")
@@ -55,7 +56,7 @@ def test_browser():
         temp_dir = tempfile.mkdtemp()
         
         try:
-            print(f"🚀 啟動【完全隔離】瀏覽器，準備處理: {acc['label']}")
+            print(f"🚀 啟動瀏覽器，準備處理: {acc['label']} (任務: {action})")
             
             options = uc.ChromeOptions()
             options.add_argument("--headless=new")  
@@ -76,7 +77,7 @@ def test_browser():
             driver.set_page_load_timeout(20)
 
             # ==========================================
-            # 1. 登入流程
+            # 1. 共用登入流程
             # ==========================================
             try:
                 driver.get("https://www.watsons.com.tw/my-account/orders")
@@ -100,134 +101,129 @@ def test_browser():
             time.sleep(12) 
 
             # ==========================================
-            # 🌟 2. 先抓取優惠券 (這時候點擊最穩！)
+            # 🌟 2. 任務分流：如果選擇抓取優惠卷，或兩者皆抓
             # ==========================================
-            print(f"🎟️ {acc['label']} 先抓取優惠卷...")
-            try:
-                coupon_tab = wait.until(
-                    EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
-                )
-                driver.execute_script("arguments[0].click();", coupon_tab)
-                print(f"👉 成功跳轉優惠卷，等待載入...")
-                time.sleep(3) 
-                
+            if action in ["coupons", "both"]:
+                print(f"🎟️ {acc['label']} 開始抓取優惠卷...")
                 try:
-                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
-                    time.sleep(2) 
-                except:
-                    pass
-
-                coupon_html = driver.page_source
-                soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
-                coupon_items = soup_coupon.find_all('div', class_='coupon-item')
-                
-                for c in coupon_items:
-                    name_elem = c.find('div', class_='name')
-                    date_elem = c.find('div', class_='date')
-                    expiring_elem = c.find('span', class_='expiring')
+                    coupon_tab = wait.until(
+                        EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
+                    )
+                    driver.execute_script("arguments[0].click();", coupon_tab)
+                    time.sleep(6) 
                     
-                    if name_elem and date_elem:
-                        c_name = name_elem.text.replace('\n', '').strip()
-                        c_date = date_elem.text.replace('\n', '').strip()
-                        c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
+                    try:
+                        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
+                        time.sleep(2) 
+                    except:
+                        pass
+
+                    coupon_html = driver.page_source
+                    soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
+                    coupon_items = soup_coupon.find_all('div', class_='coupon-item')
+                    
+                    for c in coupon_items:
+                        name_elem = c.find('div', class_='name')
+                        date_elem = c.find('div', class_='date')
+                        expiring_elem = c.find('span', class_='expiring')
                         
-                        all_coupons_data.append({
-                            "歸屬帳號": acc["label"],
-                            "名稱": c_name,
-                            "到期日": c_date,
-                            "狀態": c_status
-                        })
-                print(f"✅ 抓到 {len(coupon_items)} 張優惠卷！")
-            except Exception as e:
-                print(f"⚠️ 優惠卷抓取失敗: {e}")
-
-            # ==========================================
-            # 🌟 3. 再抓取門市訂單
-            # ==========================================
-            print(f"📦 {acc['label']} 接著切換回訂單頁面...")
-            try:
-                # 先點擊左側選單回到「訂單查詢」
-                orders_menu = wait.until(
-                    EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/orders')]"))
-                )
-                driver.execute_script("arguments[0].click();", orders_menu)
-                time.sleep(4)
-
-                # 切換到門市交易紀錄
-                store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
-                driver.execute_script("arguments[0].click();", store_records_tab)
-                time.sleep(3) 
-
-                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-                time.sleep(2) 
-
-                page_html = driver.page_source
-                soup = BeautifulSoup(page_html, 'html.parser')
-                items = soup.find_all('e2-my-account-order-history-item')
-
-                for item in items:
-                    data_ul = item.find('ul', class_='desktop-order-data')
-                    if not data_ul:
-                        data_ul = item.find('ul', class_='data')
-
-                    if data_ul:
-                        lis = data_ul.find_all('li')
-                        if len(lis) >= 5:
-                            full_date_str = lis[0].text.strip()
-                            store_name = lis[1].text.strip()
-                            amount = lis[2].text.strip()
-                            points_earned = lis[3].text.strip()
-                            points_used = lis[4].text.strip()
-
-                            if not full_date_str: continue
-                            date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
-
-                            products = []
-                            detail_blocks = item.find_all('div', class_='order-details')
+                        if name_elem and date_elem:
+                            c_name = name_elem.text.replace('\n', '').strip()
+                            c_date = date_elem.text.replace('\n', '').strip()
+                            c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
                             
-                            for block in detail_blocks:
-                                name_elem = block.find('div', class_='product-name')
-                                qty_elem = block.find('div', class_='product-quantity')
-                                
-                                if name_elem and qty_elem:
-                                    p_name = name_elem.text.replace('\n', '').strip()
-                                    p_name = ' '.join(p_name.split()) 
-                                    p_qty = qty_elem.text.strip()
-                                    products.append({"商品名稱": p_name, "數量": p_qty})
-
-                            all_raw_data.append({
-                                "歸屬帳號": acc["label"], 
-                                "日期": date_only,
-                                "店名": store_name,
-                                "金額": amount,
-                                "獲得點數": points_earned,
-                                "使用點數": points_used,
-                                "購買商品清單": products
+                            all_coupons_data.append({
+                                "歸屬帳號": acc["label"],
+                                "名稱": c_name,
+                                "到期日": c_date,
+                                "狀態": c_status
                             })
-                            stats[date_only][store_name] += 1
-                print(f"✅ 訂單抓取完畢！")
-            except Exception as e:
-                print(f"⚠️ 訂單抓取失敗: {e}")
+                    print(f"✅ 抓到 {len(coupon_items)} 張優惠卷！")
+                except Exception as e:
+                    print(f"⚠️ 優惠卷抓取失敗: {e}")
+
+            # ==========================================
+            # 🌟 3. 任務分流：如果選擇抓取訂單，或兩者皆抓
+            # ==========================================
+            if action in ["orders", "both"]:
+                print(f"📦 {acc['label']} 開始抓取門市訂單...")
+                try:
+                    # 如果剛剛去過優惠卷頁面，就要先切換回來
+                    if action == "both":
+                        orders_menu = wait.until(
+                            EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/orders')]"))
+                        )
+                        driver.execute_script("arguments[0].click();", orders_menu)
+                        time.sleep(4)
+
+                    store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
+                    driver.execute_script("arguments[0].click();", store_records_tab)
+                    time.sleep(3) 
+
+                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
+                    time.sleep(2) 
+
+                    page_html = driver.page_source
+                    soup = BeautifulSoup(page_html, 'html.parser')
+                    items = soup.find_all('e2-my-account-order-history-item')
+
+                    for item in items:
+                        data_ul = item.find('ul', class_='desktop-order-data')
+                        if not data_ul:
+                            data_ul = item.find('ul', class_='data')
+
+                        if data_ul:
+                            lis = data_ul.find_all('li')
+                            if len(lis) >= 5:
+                                full_date_str = lis[0].text.strip()
+                                store_name = lis[1].text.strip()
+                                amount = lis[2].text.strip()
+                                points_earned = lis[3].text.strip()
+                                points_used = lis[4].text.strip()
+
+                                if not full_date_str: continue
+                                date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
+
+                                products = []
+                                detail_blocks = item.find_all('div', class_='order-details')
+                                
+                                for block in detail_blocks:
+                                    name_elem = block.find('div', class_='product-name')
+                                    qty_elem = block.find('div', class_='product-quantity')
+                                    
+                                    if name_elem and qty_elem:
+                                        p_name = name_elem.text.replace('\n', '').strip()
+                                        p_name = ' '.join(p_name.split()) 
+                                        p_qty = qty_elem.text.strip()
+                                        products.append({"商品名稱": p_name, "數量": p_qty})
+
+                                all_raw_data.append({
+                                    "歸屬帳號": acc["label"], 
+                                    "日期": date_only,
+                                    "店名": store_name,
+                                    "金額": amount,
+                                    "獲得點數": points_earned,
+                                    "使用點數": points_used,
+                                    "購買商品清單": products
+                                })
+                                stats[date_only][store_name] += 1
+                    print(f"✅ 訂單抓取完畢！")
+                except Exception as e:
+                    print(f"⚠️ 訂單抓取失敗: {e}")
 
         except Exception as e:
             print(f"❌ {acc['label']} 發生錯誤跳過: {type(e).__name__} - {e}")
             if driver:
-                try:
-                    error_screenshot = driver.get_screenshot_as_base64()
-                except:
-                    pass
+                try: error_screenshot = driver.get_screenshot_as_base64()
+                except: pass
             continue 
             
         finally:
             if driver:
-                try:
-                    driver.quit()
-                except:
-                    pass
-            try:
-                shutil.rmtree(temp_dir, ignore_errors=True)
-            except:
-                pass
+                try: driver.quit()
+                except: pass
+            try: shutil.rmtree(temp_dir, ignore_errors=True)
+            except: pass
             print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
             time.sleep(8)
 
@@ -237,11 +233,8 @@ def test_browser():
         for store, count in stats[date].items():
             final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
 
-    if len(all_raw_data) == 0 and len(all_coupons_data) == 0 and error_screenshot:
-        return {"message": "所有帳號皆抓取失敗", "screenshot_base64": error_screenshot}
-
     return {
-        "message": f"成功抓取 {len(accounts)} 組帳號的資料！",
+        "message": f"成功執行任務！(目標: {action})",
         "資料總筆數": len(all_raw_data),
         "統計結果": final_summary,
         "詳細清單": all_raw_data,
