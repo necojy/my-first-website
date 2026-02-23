@@ -98,7 +98,7 @@ def test_browser(action: str = "both"):
             time.sleep(1)
             
             password_input.send_keys(Keys.RETURN)
-            time.sleep(12) 
+            time.sleep(4) 
 
             # ==========================================
             # 🌟 2. 任務分流：如果選擇抓取優惠卷，或兩者皆抓
@@ -110,7 +110,7 @@ def test_browser(action: str = "both"):
                         EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
                     )
                     driver.execute_script("arguments[0].click();", coupon_tab)
-                    time.sleep(6) 
+                    time.sleep(3) 
                     
                     try:
                         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
