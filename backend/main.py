@@ -152,43 +152,61 @@ def test_browser():
                         })
                         stats[date_only][store_name] += 1
            # ==========================================
-            # 🌟 2. 跳轉並抓取優惠卷 (新功能 - 智慧等待版)
+            # 🌟 2. 跳轉並抓取優惠卷 (拍照存證版)
             # ==========================================
             print(f"🎟️ {acc['label']} 準備抓取優惠卷...")
             try:
-                driver.get("https://www.watsons.com.tw/my-account/ecouponsEvouchers")
-                
-                # 🌟 魔法防護：用智慧等待取代 time.sleep
+                # 🛡️ 加上保護機制，防止網頁無限轉圈圈
                 try:
-                    # 盯著畫面看，直到出現 coupon-item (最多等 10 秒)
-                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.coupon-item")))
-                    time.sleep(2) # 畫出來之後，再給它 2 秒鐘把文字填好
+                    driver.get("https://www.watsons.com.tw/my-account/ecouponsEvouchers")
                 except TimeoutException:
-                    print(f"⚠️ {acc['label']} 等不到優惠卷，可能真的沒有半張！")
-                    pass # 如果真的沒有半張，就優雅地放過它，不要當機
+                    driver.execute_script("window.stop();")
+                except Exception:
+                    pass
+                
+                time.sleep(6) # 乖乖等 6 秒讓 Angular 畫圖
+                
+                # 🌟 等待外層的大容器出現 (不管有沒有優惠卷都會有這個容器)
+                try:
+                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
+                    time.sleep(2) 
+                except TimeoutException:
+                    print(f"⚠️ {acc['label']} 等不到優惠卷主容器...")
+                    pass
 
-                # 確保網頁穩定後，再按下快門抓取 HTML
                 coupon_html = driver.page_source
                 soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
                 coupon_items = soup_coupon.find_all('div', class_='coupon-item')
                 
-                for c in coupon_items:
-                    name_elem = c.find('div', class_='name')
-                    date_elem = c.find('div', class_='date')
-                    expiring_elem = c.find('span', class_='expiring')
-                    
-                    if name_elem and date_elem:
-                        c_name = name_elem.text.replace('\n', '').strip()
-                        c_date = date_elem.text.replace('\n', '').strip()
-                        c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
+                if len(coupon_items) == 0:
+                    # 📸 關鍵：如果找不到半張，就拍下當時的畫面！
+                    print(f"📸 {acc['label']} 找不到優惠卷，拍照存證！")
+                    c_screenshot = driver.get_screenshot_as_base64()
+                    all_coupons_data.append({
+                        "歸屬帳號": acc["label"],
+                        "名稱": "⚠️ 查無優惠卷 (請看下方機器人視角截圖)",
+                        "到期日": "-",
+                        "狀態": "無資料",
+                        "截圖": c_screenshot # 偷偷把照片塞進包裹裡
+                    })
+                else:
+                    for c in coupon_items:
+                        name_elem = c.find('div', class_='name')
+                        date_elem = c.find('div', class_='date')
+                        expiring_elem = c.find('span', class_='expiring')
                         
-                        all_coupons_data.append({
-                            "歸屬帳號": acc["label"],
-                            "名稱": c_name,
-                            "到期日": c_date,
-                            "狀態": c_status
-                        })
-                print(f"✅ {acc['label']} 成功抓取到 {len(coupon_items)} 張優惠卷！")
+                        if name_elem and date_elem:
+                            c_name = name_elem.text.replace('\n', '').strip()
+                            c_date = date_elem.text.replace('\n', '').strip()
+                            c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
+                            
+                            all_coupons_data.append({
+                                "歸屬帳號": acc["label"],
+                                "名稱": c_name,
+                                "到期日": c_date,
+                                "狀態": c_status
+                            })
+                print(f"✅ {acc['label']} 優惠卷區域處理完畢！")
             except Exception as e:
                 print(f"⚠️ 抓取優惠卷失敗: {e}")
 

@@ -117,25 +117,33 @@
         }
 
         // ==========================================
-        // 🌟 新增：專門用來畫「優惠卷表格」的函數
+        // 🌟 專門用來畫「優惠卷表格」(支援顯示報錯照片)
         // ==========================================
         function getCouponsHtml() {
             if (allCoupons.length === 0) return "";
             
             let html = `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
-            html += `<h3>🎟️ 目前可用優惠卷 (共 ${allCoupons.length} 張)</h3>`;
+            html += `<h3>🎟️ 目前可用優惠卷 (共抓取 ${allCoupons.length} 筆紀錄)</h3>`;
             html += `<table><tr>
                         <th style="background-color: #fff3cd;">帳號</th>
-                        <th style="background-color: #fff3cd;">優惠卷名稱</th>
+                        <th style="background-color: #fff3cd;">優惠卷名稱 / 機器人視角</th>
                         <th style="background-color: #fff3cd;">到期日</th>
                         <th style="background-color: #fff3cd;">狀態</th>
                      </tr>`;
 
             allCoupons.forEach(coupon => {
                 let statusClass = coupon['狀態'].includes("即將到期") ? "coupon-warning" : "coupon-normal";
+                let nameHtml = `<span style="font-weight:bold;">${coupon['名稱']}</span>`;
+                
+                // 📸 如果包裹裡有照片，就把它畫出來！
+                if (coupon['截圖']) {
+                    nameHtml += `<br><img src="data:image/png;base64,${coupon['截圖']}" style="max-width: 100%; max-height: 400px; border: 3px solid red; border-radius: 8px; margin-top: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.2);"/>`;
+                    statusClass = "coupon-warning"; // 標紅字
+                }
+                
                 html += `<tr>
-                            <td style="white-space: nowrap; font-weight: bold;">${coupon['歸屬帳號']}</td>
-                            <td>${coupon['名稱']}</td>
+                            <td style="white-space: nowrap; font-weight: bold; background-color: #fcf8e3;">${coupon['歸屬帳號']}</td>
+                            <td>${nameHtml}</td>
                             <td style="white-space: nowrap;">${coupon['到期日']}</td>
                             <td class="${statusClass}">${coupon['狀態']}</td>
                          </tr>`;
