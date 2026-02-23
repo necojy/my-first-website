@@ -6,7 +6,6 @@
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; }
         
-        /* 替三個按鈕設定不同的顏色，提升 UX 體驗 */
         .btn-orders { padding: 15px 25px; font-size: 16px; cursor: pointer; background-color: #f39c12; color: white; border: none; border-radius: 5px; margin: 5px; }
         .btn-coupons { padding: 15px 25px; font-size: 16px; cursor: pointer; background-color: #e74c3c; color: white; border: none; border-radius: 5px; margin: 5px; }
         .btn-both { padding: 15px 25px; font-size: 16px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; margin: 5px; }
@@ -53,20 +52,44 @@
         let statsSummary = [];
         let summaryMessage = "";
         let isSummaryMode = false;
+        
+        // 🌟 新增：計時器相關變數
+        let timerInterval = null;
+        let secondsElapsed = 0;
 
-        // 🌟 新增接收 action 參數
+        // 🌟 新增：啟動計時器函數
+        function startTimer(baseMsg) {
+            secondsElapsed = 0;
+            clearInterval(timerInterval); // 確保沒有舊的計時器在跑
+            const resultDiv = document.getElementById('result');
+            
+            // 立即顯示第 0 秒的狀態
+            resultDiv.innerText = `${baseMsg} ⏱️ 已耗時: ${secondsElapsed} 秒`;
+            
+            // 每 1000 毫秒 (1秒) 更新一次畫面
+            timerInterval = setInterval(() => {
+                secondsElapsed++;
+                resultDiv.innerText = `${baseMsg} ⏱️ 已耗時: ${secondsElapsed} 秒`;
+            }, 1000);
+        }
+
+        // 🌟 新增：停止計時器函數
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
         async function sendData(action) {
-            // 根據不同按鈕，加上 ?action=...
             const backendUrl = `https://necojy-watsons-bot.hf.space/api/open_browser?action=${action}`;
             
-            // 根據任務顯示不同的等待提示
             let waitMsg = "";
-            if(action === 'orders') waitMsg = "機器人正在抓取「消費紀錄」，請稍候約 30 秒...";
-            else if(action === 'coupons') waitMsg = "機器人正在抓取「優惠卷」，請稍候約 30 秒...";
-            else waitMsg = "機器人正在進行「全面抓取」，請稍候約 50~60 秒...";
+            if(action === 'orders') waitMsg = "機器人正在抓取「消費紀錄」，請稍候...";
+            else if(action === 'coupons') waitMsg = "機器人正在抓取「優惠卷」，請稍候...";
+            else waitMsg = "機器人正在進行「全面抓取」，請稍候...";
 
             document.getElementById('result').style.color = "blue";
-            document.getElementById('result').innerText = waitMsg;
+            
+            // 🌟 呼叫啟動計時器
+            startTimer(waitMsg);
             
             document.getElementById('searchDate').value = "";   
             document.getElementById('searchStore').value = "";  
@@ -79,14 +102,17 @@
                 const response = await fetch(backendUrl);
                 const data = await response.json();
                 
-                // 每次抓取前先清空舊資料，避免畫面殘留
+                // 🌟 資料抓回來了，立刻停止計時！
+                stopTimer();
+                
                 allOrders = data['詳細清單'] || [];
                 allCoupons = data['優惠卷清單'] || []; 
                 statsSummary = data['統計結果'] || [];
-                summaryMessage = data.message || "";
+                
+                // 把最終耗時加到成功的訊息後面
+                summaryMessage = (data.message || "") + ` (總耗時: ${secondsElapsed} 秒)`;
 
                 if (allOrders.length > 0 || allCoupons.length > 0) {
-                    // 如果有抓到訂單，才顯示搜尋面板
                     if(allOrders.length > 0) {
                         document.getElementById('control-panel').style.display = "inline-block";
                     } else {
@@ -97,8 +123,10 @@
                 filterOrders(); 
 
             } catch (error) {
+                // 🌟 發生錯誤也要停止計時
+                stopTimer();
                 document.getElementById('result').style.color = "red";
-                document.getElementById('result').innerText = "連線失敗，請檢查網址或後端狀態";
+                document.getElementById('result').innerText = `連線失敗，請檢查網址或後端狀態 (在第 ${secondsElapsed} 秒時中斷)`;
             }
         }
 

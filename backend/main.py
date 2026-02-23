@@ -36,7 +36,7 @@ def test_browser(action: str = "both"):
     if u1 and p1:
         accounts.append({"user": u1, "pass": p1, "label": l1})
 
-    for i in range(2, 21):
+    for i in range(2, 8):
         u = os.getenv(f"WATSONS_USERNAME_{i}")
         p = os.getenv(f"WATSONS_PASSWORD_{i}")
         l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
@@ -98,7 +98,7 @@ def test_browser(action: str = "both"):
             time.sleep(1)
             
             password_input.send_keys(Keys.RETURN)
-            time.sleep(4) 
+            time.sleep(8) 
 
             # ==========================================
             # 🌟 2. 任務分流：如果選擇抓取優惠卷，或兩者皆抓
@@ -110,7 +110,7 @@ def test_browser(action: str = "both"):
                         EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
                     )
                     driver.execute_script("arguments[0].click();", coupon_tab)
-                    time.sleep(3) 
+                    time.sleep(5) 
                     
                     try:
                         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
