@@ -100,6 +100,39 @@ def test_browser():
             password_input.send_keys(Keys.RETURN)
             time.sleep(3) 
 
+            # ==========================================
+            # 2. 測試點擊並跳轉優惠券
+            # ==========================================
+            print("4. 準備點擊「折價券/提貨券」...")
+            try:
+                coupon_tab = wait.until(
+                    EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
+                )
+                driver.execute_script("arguments[0].click();", coupon_tab)
+                print("👉 成功點擊選單！等待 8 秒讓 Angular 畫圖...")
+                time.sleep(8)
+
+                print("📸 拍照存證！")
+                c_screenshot = driver.get_screenshot_as_base64()
+        
+                # 🌟 刻意把照片放在 screenshot_base64 欄位，這樣你的前端就會自動把它當作圖片印出來！
+                return {
+                    "message": "測試完成！請查看下方的機器人視角截圖",
+                    "screenshot_base64": c_screenshot,
+                    "統計結果": [], # 給空陣列避免前端報錯
+                    "詳細清單": []  # 給空陣列避免前端報錯
+                }
+                
+            except Exception as e:
+                print(f"⚠️ 點擊失敗，發生錯誤：{e}")
+                # 🌟 刻意把照片放在 screenshot_base64 欄位，這樣你的前端就會自動把它當作圖片印出來！
+                return {
+                    "message": "測試完成！請查看下方的機器人視角截圖",
+                    "screenshot_base64": c_screenshot,
+                    "統計結果": [], # 給空陣列避免前端報錯
+                    "詳細清單": []  # 給空陣列避免前端報錯
+                }
+
             store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
             driver.execute_script("arguments[0].click();", store_records_tab)
             time.sleep(2) 
@@ -151,31 +184,7 @@ def test_browser():
                             "購買商品清單": products
                         })
                         stats[date_only][store_name] += 1
-           # ==========================================
-            # 2. 測試點擊並跳轉優惠券
-            # ==========================================
-            print("4. 準備點擊「折價券/提貨券」...")
-            try:
-                coupon_tab = wait.until(
-                    EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
-                )
-                driver.execute_script("arguments[0].click();", coupon_tab)
-                print("👉 成功點擊選單！等待 8 秒讓 Angular 畫圖...")
-                time.sleep(8)
-
-                print("📸 拍照存證！")
-                c_screenshot = driver.get_screenshot_as_base64()
-        
-                # 🌟 刻意把照片放在 screenshot_base64 欄位，這樣你的前端就會自動把它當作圖片印出來！
-                return {
-                    "message": "測試完成！請查看下方的機器人視角截圖",
-                    "screenshot_base64": c_screenshot,
-                    "統計結果": [], # 給空陣列避免前端報錯
-                    "詳細清單": []  # 給空陣列避免前端報錯
-                }
-                
-            except Exception as e:
-                print(f"⚠️ 點擊失敗，發生錯誤：{e}")
+           
             
         finally:
             if driver:
