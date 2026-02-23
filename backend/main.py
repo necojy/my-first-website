@@ -100,7 +100,18 @@ def test_browser():
             password_input.send_keys(Keys.RETURN)
             time.sleep(3) 
 
-            # ==========================================
+            store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
+            driver.execute_script("arguments[0].click();", store_records_tab)
+            time.sleep(2) 
+
+            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
+            time.sleep(2) 
+
+            page_html = driver.page_source
+            soup = BeautifulSoup(page_html, 'html.parser')
+            items = soup.find_all('e2-my-account-order-history-item')
+
+             # ==========================================
             # 2. 測試點擊並跳轉優惠券
             # ==========================================
             print("4. 準備點擊「折價券/提貨券」...")
@@ -132,17 +143,6 @@ def test_browser():
                     "統計結果": [], # 給空陣列避免前端報錯
                     "詳細清單": []  # 給空陣列避免前端報錯
                 }
-
-            store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
-            driver.execute_script("arguments[0].click();", store_records_tab)
-            time.sleep(2) 
-
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-            time.sleep(2) 
-
-            page_html = driver.page_source
-            soup = BeautifulSoup(page_html, 'html.parser')
-            items = soup.find_all('e2-my-account-order-history-item')
 
             for item in items:
                 data_ul = item.find('ul', class_='desktop-order-data')
@@ -185,7 +185,7 @@ def test_browser():
                         })
                         stats[date_only][store_name] += 1
            
-            
+                
         finally:
             if driver:
                 try:
