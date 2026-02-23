@@ -23,19 +23,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# //
+
 @app.get("/api/open_browser")
 def test_browser():
     accounts = []
     
-    if os.getenv("WATSONS_USERNAME") and os.getenv("WATSONS_PASSWORD"):
-        accounts.append({"user": os.getenv("WATSONS_USERNAME"), "pass": os.getenv("WATSONS_PASSWORD"), "label": "帳號 1"})
+    # 🌟 1. 抓取第一組帳號 (加入自訂標籤 WATSONS_LABEL)
+    u1 = os.getenv("WATSONS_USERNAME")
+    p1 = os.getenv("WATSONS_PASSWORD")
+    l1 = os.getenv("WATSONS_LABEL", "帳號 1") # 如果沒設定名稱，就預設叫 "帳號 1"
+    
+    if u1 and p1:
+        accounts.append({"user": u1, "pass": p1, "label": l1})
 
+    # 🌟 2. 抓取第 2 組 ~ 第 20 組帳號 (加入自訂標籤 WATSONS_LABEL_X)
     for i in range(2, 21):
         u = os.getenv(f"WATSONS_USERNAME_{i}")
         p = os.getenv(f"WATSONS_PASSWORD_{i}")
+        l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") # 如果沒設定名稱，就預設叫 "帳號 i"
+        
         if u and p:
-            accounts.append({"user": u, "pass": p, "label": f"帳號 {i}"})
+            accounts.append({"user": u, "pass": p, "label": l})
 
     if not accounts:
         return {"message": "發生錯誤", "error": "找不到任何帳號或密碼，請檢查環境變數設定"}
@@ -44,9 +52,9 @@ def test_browser():
     stats = defaultdict(lambda: defaultdict(int))
     error_screenshot = ""
 
+    # 開始迴圈處理
     for acc in accounts:
         driver = None
-        # 🌟 1. 建立一個絕對乾淨的專屬暫存資料夾
         temp_dir = tempfile.mkdtemp()
         
         try:
@@ -64,8 +72,6 @@ def test_browser():
             options.add_argument("--disable-http2") 
             options.add_argument("--ignore-certificate-errors")
             options.page_load_strategy = 'eager'
-            
-            # 🌟 強制 Chrome 使用我們剛剛建立的乾淨資料夾
             options.add_argument(f"--user-data-dir={temp_dir}")
             
             driver = uc.Chrome(options=options)
@@ -135,7 +141,7 @@ def test_browser():
                                 products.append({"商品名稱": p_name, "數量": p_qty})
 
                         all_raw_data.append({
-                            "歸屬帳號": acc["label"],
+                            "歸屬帳號": acc["label"],  # 🌟 這裡就會寫入你自訂的名稱
                             "日期": date_only,
                             "店名": store_name,
                             "金額": amount,
@@ -146,7 +152,6 @@ def test_browser():
                         stats[date_only][store_name] += 1
 
         except Exception as e:
-            # 🌟 加上更詳細的錯誤日誌，並印出當下網址
             print(f"❌ {acc['label']} 發生錯誤跳過: {type(e).__name__} - {e}")
             if driver:
                 try:
@@ -162,13 +167,10 @@ def test_browser():
                     driver.quit()
                 except:
                     pass
-            # 🌟 2. 徹底刪除這個帳號的暫存資料夾
             try:
                 shutil.rmtree(temp_dir, ignore_errors=True)
             except:
                 pass
-            
-            # 🌟 3. 強迫休息 8 秒，假裝是人類換帳號
             print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
             time.sleep(8)
 
