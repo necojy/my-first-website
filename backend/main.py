@@ -164,7 +164,7 @@ def test_browser():
                 except Exception:
                     pass
                 
-                time.sleep(6) # 乖乖等 6 秒讓 Angular 畫圖
+                time.sleep(10) # 乖乖等 6 秒讓 Angular 畫圖
                 
                 # 🌟 等待外層的大容器出現 (不管有沒有優惠卷都會有這個容器)
                 try:
