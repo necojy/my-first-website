@@ -151,14 +151,23 @@ def test_browser():
                             "購買商品清單": products
                         })
                         stats[date_only][store_name] += 1
-                        # ==========================================
-            # 🌟 2. 跳轉並抓取優惠卷 (新功能)
+           # ==========================================
+            # 🌟 2. 跳轉並抓取優惠卷 (新功能 - 智慧等待版)
             # ==========================================
             print(f"🎟️ {acc['label']} 準備抓取優惠卷...")
             try:
                 driver.get("https://www.watsons.com.tw/my-account/ecouponsEvouchers")
-                time.sleep(5) # 等待優惠卷載入
                 
+                # 🌟 魔法防護：用智慧等待取代 time.sleep
+                try:
+                    # 盯著畫面看，直到出現 coupon-item (最多等 10 秒)
+                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.coupon-item")))
+                    time.sleep(2) # 畫出來之後，再給它 2 秒鐘把文字填好
+                except TimeoutException:
+                    print(f"⚠️ {acc['label']} 等不到優惠卷，可能真的沒有半張！")
+                    pass # 如果真的沒有半張，就優雅地放過它，不要當機
+
+                # 確保網頁穩定後，再按下快門抓取 HTML
                 coupon_html = driver.page_source
                 soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
                 coupon_items = soup_coupon.find_all('div', class_='coupon-item')
@@ -169,8 +178,8 @@ def test_browser():
                     expiring_elem = c.find('span', class_='expiring')
                     
                     if name_elem and date_elem:
-                        c_name = name_elem.text.strip()
-                        c_date = date_elem.text.strip()
+                        c_name = name_elem.text.replace('\n', '').strip()
+                        c_date = date_elem.text.replace('\n', '').strip()
                         c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
                         
                         all_coupons_data.append({
@@ -179,7 +188,7 @@ def test_browser():
                             "到期日": c_date,
                             "狀態": c_status
                         })
-                print(f"✅ {acc['label']} 抓取到 {len(coupon_items)} 張優惠卷")
+                print(f"✅ {acc['label']} 成功抓取到 {len(coupon_items)} 張優惠卷！")
             except Exception as e:
                 print(f"⚠️ 抓取優惠卷失敗: {e}")
 
