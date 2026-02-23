@@ -12,21 +12,25 @@ jobs:
       - name: 📥 1. 抓取最新程式碼
         uses: actions/checkout@v3
 
-      - name: 🚀 2. 強制打包 backend 資料夾並送往 Hugging Face
+      - name: 🚀 2. 溫和且安全地同步 backend 資料夾至 Hugging Face
         env:
-          # 呼叫你剛剛存在 GitHub 的密碼
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # 進入你的後端資料夾
-          cd backend
+          # 設定 Git 機器人身分
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # 在這個資料夾裡建立一個獨立的包裹
-          git init
-          git checkout -b main
+          # 1. 先把 Hugging Face 上的專案完整 Clone 下來，放在一個叫 hf_space 的暫存資料夾
+          git clone https://necOjy:$HF_TOKEN@huggingface.co/spaces/necOjy/watsons-bot hf_space
+          
+          # 2. 清空 HF 專案裡原本的舊檔案 (但保留 .git 隱藏檔，維持歷史紀錄)
+          find hf_space -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          
+          # 3. 把 GitHub 上的 backend 資料夾內容，全部複製到 hf_space 裡面
+          cp -a backend/. hf_space/
+          
+          # 4. 進入 hf_space，提交並正常推送到 Hugging Face (不再使用暴力 --force)
+          cd hf_space
           git add .
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "🤖 自動從 GitHub 同步後端程式碼"
-          
-          # 🌟 透過機器人強制推送到你的 HF 專案 (注意你的帳號大小寫是 necOjy)
-          git push --force https://necOjy:$HF_TOKEN@huggingface.co/spaces/necOjy/watsons-bot main
+          git commit -m "🤖 自動從 GitHub 同步後端程式碼" || echo "沒有變更需要提交"
+          git push origin main
