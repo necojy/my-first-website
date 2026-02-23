@@ -152,24 +152,24 @@ def test_browser():
                         })
                         stats[date_only][store_name] += 1
            # ==========================================
-            # 🌟 2. 跳轉並抓取優惠卷 (模擬人類點擊版)
+            # 🌟 2. 跳轉並抓取優惠卷 (精準點擊版)
             # ==========================================
             print(f"🎟️ {acc['label']} 準備抓取優惠卷...")
             try:
-                # 🛡️ 放棄 driver.get() 直接跳轉，改用「點擊左側選單」
+                # 🛡️ 根據你找到的 HTML，精準鎖定 a 標籤的 href 屬性！
                 try:
-                    # 尋找包含「折價券」字眼的選單按鈕
                     coupon_tab = wait.until(
-                        EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'折價券')]"))
+                        EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
                     )
+                    # 使用 JavaScript 強制點擊，無視任何蓋版廣告
                     driver.execute_script("arguments[0].click();", coupon_tab)
-                    print(f"👉 成功點擊「折價券」頁籤，等待畫面載入...")
+                    print(f"👉 成功點擊「折價券/提貨券」選單，等待畫面載入...")
                 except TimeoutException:
                     print(f"⚠️ {acc['label']} 找不到左側的折價券按鈕...")
                 
-                time.sleep(6) # 乖乖等 6 秒讓畫面切換過去
+                time.sleep(6) # 乖乖等 6 秒讓畫面順滑切換過去
                 
-                # 🌟 等待外層的大容器出現
+                # 🌟 等待優惠卷的大容器出現
                 try:
                     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
                     time.sleep(2) 
@@ -182,7 +182,7 @@ def test_browser():
                 coupon_items = soup_coupon.find_all('div', class_='coupon-item')
                 
                 if len(coupon_items) == 0:
-                    # 📸 如果還是找不到，再拍一次照存證
+                    # 📸 萬一還是找不到，拍下案發現場
                     print(f"📸 {acc['label']} 找不到優惠卷，拍照存證！")
                     c_screenshot = driver.get_screenshot_as_base64()
                     all_coupons_data.append({
@@ -209,7 +209,7 @@ def test_browser():
                                 "到期日": c_date,
                                 "狀態": c_status
                             })
-                print(f"✅ {acc['label']} 優惠卷區域處理完畢！共 {len(coupon_items)} 張。")
+                print(f"✅ {acc['label']} 優惠卷區域處理完畢！共抓到 {len(coupon_items)} 張。")
             except Exception as e:
                 print(f"⚠️ 抓取優惠卷失敗: {e}")
 
