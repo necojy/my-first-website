@@ -159,8 +159,11 @@ def test_browser():
             # 🛡️ 根據你找到的 HTML，精準鎖定 a 標籤的 href 屬性！
             try:
                 driver.get("https://www.watsons.com.tw/my-account/ecouponsEvouchers")
+
+                time.sleep(5)
                 print(f"👉 成功點擊「折價券/提貨券」選單，等待畫面載入...")
                 c_screenshot = driver.get_screenshot_as_base64()
+                
                 all_coupons_data.append({
                     "歸屬帳號": acc["label"],
                     "名稱": "⚠️ 查無優惠卷 (請看下方機器人視角截圖)",
