@@ -172,7 +172,7 @@ def test_browser():
             except:
                 pass
             print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
-            time.sleep(4)
+            time.sleep(6)
 
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
