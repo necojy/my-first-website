@@ -5,14 +5,11 @@ import os
 import tempfile
 import shutil
 from dotenv import load_dotenv
-from collections import defaultdict
-from bs4 import BeautifulSoup 
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import TimeoutException
 
 load_dotenv()
 app = FastAPI()
@@ -26,193 +23,95 @@ app.add_middleware(
 
 @app.get("/api/open_browser")
 def test_browser():
-    accounts = []
-    
-    # 🌟 1. 抓取第一組帳號 (加入自訂標籤 WATSONS_LABEL)
+    # 🌟 簡單測試模式：只抓第一組帳號來測
     u1 = os.getenv("WATSONS_USERNAME")
     p1 = os.getenv("WATSONS_PASSWORD")
-    l1 = os.getenv("WATSONS_LABEL", "帳號 1") # 如果沒設定名稱，就預設叫 "帳號 1"
     
-    if u1 and p1:
-        accounts.append({"user": u1, "pass": p1, "label": l1})
+    if not u1 or not p1:
+        return {"message": "發生錯誤", "error": "找不到帳號密碼"}
 
-    # # 🌟 2. 抓取第 2 組 ~ 第 20 組帳號 (加入自訂標籤 WATSONS_LABEL_X)
-    # for i in range(2, 21):
-    #     u = os.getenv(f"WATSONS_USERNAME_{i}")
-    #     p = os.getenv(f"WATSONS_PASSWORD_{i}")
-    #     l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") # 如果沒設定名稱，就預設叫 "帳號 i"
+    driver = None
+    temp_dir = tempfile.mkdtemp()
+    
+    try:
+        print("🚀 啟動【簡單測試模式】瀏覽器...")
         
-    #     if u and p:
-    #         accounts.append({"user": u, "pass": p, "label": l})
-
-    # if not accounts:
-    #     return {"message": "發生錯誤", "error": "找不到任何帳號或密碼，請檢查環境變數設定"}
-
-    all_raw_data = []  
-    all_coupons_data = [] # 🌟 新增：用來存放所有帳號的優惠卷
-    stats = defaultdict(lambda: defaultdict(int))
-    error_screenshot = ""
-
-    # 開始迴圈處理
-    for acc in accounts:
-        driver = None
-        temp_dir = tempfile.mkdtemp()
+        options = uc.ChromeOptions()
+        options.add_argument("--headless=new")  
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
+        options.add_argument("--lang=zh-TW")
+        options.add_argument(f"--user-data-dir={temp_dir}")
+        options.page_load_strategy = 'eager'
         
+        driver = uc.Chrome(options=options)
+        wait = WebDriverWait(driver, 20)
+        driver.set_page_load_timeout(20)
+
+        # ==========================================
+        # 1. 先登入 (一定要先登入才能看優惠券！)
+        # ==========================================
+        print("1. 前往登入頁面...")
+        driver.get("https://www.watsons.com.tw/my-account/orders")
+        time.sleep(3)
+
+        print("2. 輸入帳密...")
+        username_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")))
+        username_input.clear()
+        username_input.send_keys(u1) 
+        time.sleep(1)
+
+        password_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@type='password']")))
+        password_input.clear()
+        password_input.send_keys(p1) 
+        time.sleep(1)
+        
+        password_input.send_keys(Keys.RETURN)
+        print("3. 等待登入跳轉 (12秒)...")
+        time.sleep(12) 
+
+        # ==========================================
+        # 2. 測試點擊並跳轉優惠券
+        # ==========================================
+        print("4. 準備點擊「折價券/提貨券」...")
         try:
-            print(f"🚀 啟動【完全隔離】瀏覽器，準備處理: {acc['label']}")
+            coupon_tab = wait.until(
+                EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
+            )
+            driver.execute_script("arguments[0].click();", coupon_tab)
+            print("👉 成功點擊選單！等待 8 秒讓 Angular 畫圖...")
+            time.sleep(8)
             
-            options = uc.ChromeOptions()
-            options.add_argument("--headless=new")  
-            options.add_argument("--no-sandbox")
-            options.add_argument("--disable-dev-shm-usage")
-            options.add_argument("--disable-gpu")
-            options.add_argument("--window-size=1920,1080")
-            options.add_argument("--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-            options.add_argument("--lang=zh-TW")
-            options.add_argument("--accept-lang=zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7")
-            options.add_argument("--disable-http2") 
-            options.add_argument("--ignore-certificate-errors")
-            options.page_load_strategy = 'eager'
-            options.add_argument(f"--user-data-dir={temp_dir}")
-            
-            driver = uc.Chrome(options=options)
-            wait = WebDriverWait(driver, 20)
-            driver.set_page_load_timeout(20)
-
-            try:
-                driver.get("https://www.watsons.com.tw/my-account/orders")
-            except TimeoutException:
-                driver.execute_script("window.stop();")
-            except Exception:
-                pass
-            time.sleep(2)
-    
-            username_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")))
-            username_input.clear()
-            username_input.send_keys(acc["user"]) 
-            time.sleep(1)
-
-            password_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@type='password']")))
-            password_input.clear()
-            password_input.send_keys(acc["pass"]) 
-            time.sleep(1)
-            
-            password_input.send_keys(Keys.RETURN)
-            time.sleep(3) 
-
-            store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
-            driver.execute_script("arguments[0].click();", store_records_tab)
-            time.sleep(2) 
-
-            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-            time.sleep(2) 
-
-            page_html = driver.page_source
-            soup = BeautifulSoup(page_html, 'html.parser')
-            items = soup.find_all('e2-my-account-order-history-item')
-
-            for item in items:
-                data_ul = item.find('ul', class_='desktop-order-data')
-                if not data_ul:
-                    data_ul = item.find('ul', class_='data')
-
-                if data_ul:
-                    lis = data_ul.find_all('li')
-                    if len(lis) >= 5:
-                        full_date_str = lis[0].text.strip()
-                        store_name = lis[1].text.strip()
-                        amount = lis[2].text.strip()
-                        points_earned = lis[3].text.strip()
-                        points_used = lis[4].text.strip()
-
-                        if not full_date_str: continue
-                        date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
-
-                        products = []
-                        detail_blocks = item.find_all('div', class_='order-details')
-                        
-                        for block in detail_blocks:
-                            name_elem = block.find('div', class_='product-name')
-                            qty_elem = block.find('div', class_='product-quantity')
-                            
-                            if name_elem and qty_elem:
-                                p_name = name_elem.text.replace('\n', '').strip()
-                                p_name = ' '.join(p_name.split()) 
-                                p_qty = qty_elem.text.strip()
-                                products.append({"商品名稱": p_name, "數量": p_qty})
-
-                        all_raw_data.append({
-                            "歸屬帳號": acc["label"],  # 🌟 這裡就會寫入你自訂的名稱
-                            "日期": date_only,
-                            "店名": store_name,
-                            "金額": amount,
-                            "獲得點數": points_earned,
-                            "使用點數": points_used,
-                            "購買商品清單": products
-                        })
-                        stats[date_only][store_name] += 1
-           # ==========================================
-            # 🌟 2. 跳轉並抓取優惠卷 (精準點擊版)
-            # ==========================================
-            print(f"🎟️ {acc['label']} 準備抓取優惠卷...")
-            
-            # 🛡️ 根據你找到的 HTML，精準鎖定 a 標籤的 href 屬性！
-            try:
-                driver.get("https://www.watsons.com.tw/my-account/ecouponsEvouchers")
-
-                time.sleep(5)
-                print(f"👉 成功點擊「折價券/提貨券」選單，等待畫面載入...")
-                c_screenshot = driver.get_screenshot_as_base64()
-                
-                all_coupons_data.append({
-                    "歸屬帳號": acc["label"],
-                    "名稱": "⚠️ 查無優惠卷 (請看下方機器人視角截圖)",
-                    "到期日": "-",
-                    "狀態": "無資料",
-                    "截圖": c_screenshot 
-                })
-
-            except TimeoutException:
-                print(f"⚠️ {acc['label']} 找不到左側的折價券按鈕...")
-            
-            
-
         except Exception as e:
-            print(f"❌ {acc['label']} 發生錯誤跳過: {type(e).__name__} - {e}")
-            if driver:
-                try:
-                    print(f"❌ 錯誤發生時的網址: {driver.current_url}")
-                    error_screenshot = driver.get_screenshot_as_base64()
-                except:
-                    pass
-            continue 
-            
-        finally:
-            if driver:
-                try:
-                    driver.quit()
-                except:
-                    pass
-            try:
-                shutil.rmtree(temp_dir, ignore_errors=True)
-            except:
-                pass
-            print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
-            time.sleep(6)
+            print(f"⚠️ 點擊失敗，發生錯誤：{e}")
 
-    final_summary = []
-    sorted_dates = sorted(stats.keys(), reverse=True)
-    for date in sorted_dates:
-        for store, count in stats[date].items():
-            final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
+        # ==========================================
+        # 3. 拍照並回傳給前端
+        # ==========================================
+        print("📸 拍照存證！")
+        c_screenshot = driver.get_screenshot_as_base64()
+        
+        # 🌟 刻意把照片放在 screenshot_base64 欄位，這樣你的前端就會自動把它當作圖片印出來！
+        return {
+            "message": "測試完成！請查看下方的機器人視角截圖",
+            "screenshot_base64": c_screenshot,
+            "統計結果": [], # 給空陣列避免前端報錯
+            "詳細清單": []  # 給空陣列避免前端報錯
+        }
 
-    if len(all_raw_data) == 0 and len(all_coupons_data) == 0 and error_screenshot:
-        return {"message": "所有帳號皆抓取失敗", "screenshot_base64": error_screenshot}
-
-    return {
-        "message": f"成功抓取 {len(accounts)} 組帳號的資料！",
-        "資料總筆數": len(all_raw_data),
-        "統計結果": final_summary,
-        "詳細清單": all_raw_data,
-        "優惠卷清單": all_coupons_data # 🌟 把優惠卷一併回傳給前端
-    }
+    except Exception as e:
+        err_img = ""
+        if driver:
+            try: err_img = driver.get_screenshot_as_base64()
+            except: pass
+        return {"message": f"發生錯誤: {e}", "screenshot_base64": err_img}
+        
+    finally:
+        if driver:
+            try: driver.quit()
+            except: pass
+        try: shutil.rmtree(temp_dir, ignore_errors=True)
+        except: pass
