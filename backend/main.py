@@ -99,7 +99,6 @@ def test_browser(action: str = "both"):
             
             password_input.send_keys(Keys.RETURN)
             time.sleep(6) 
-            print("")
             # ==========================================
             # 🌟 2. 任務分流：如果選擇抓取優惠卷，或兩者皆抓
             # ==========================================
