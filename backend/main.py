@@ -110,7 +110,7 @@ def test_browser(action: str = "both"):
                         EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
                     )
                     driver.execute_script("arguments[0].click();", coupon_tab)
-                    time.sleep(5) 
+                    time.sleep(6) 
                     
                     try:
                         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
@@ -122,25 +122,42 @@ def test_browser(action: str = "both"):
                     soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
                     coupon_items = soup_coupon.find_all('div', class_='coupon-item')
                     
-                    for c in coupon_items:
-                        name_elem = c.find('div', class_='name')
-                        date_elem = c.find('div', class_='date')
-                        expiring_elem = c.find('span', class_='expiring')
-                        
-                        if name_elem and date_elem:
-                            c_name = name_elem.text.replace('\n', '').strip()
-                            c_date = date_elem.text.replace('\n', '').strip()
-                            c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
+                    # 🌟 關鍵修復 1：如果抓到 0 張，主動發送一筆「0 張」的紀錄給前端！
+                    if len(coupon_items) == 0:
+                        all_coupons_data.append({
+                            "歸屬帳號": acc["label"],
+                            "名稱": "沒有可用的優惠卷 😅",
+                            "到期日": "-",
+                            "狀態": "無紀錄"
+                        })
+                    else:
+                        for c in coupon_items:
+                            name_elem = c.find('div', class_='name')
+                            date_elem = c.find('div', class_='date')
+                            expiring_elem = c.find('span', class_='expiring')
                             
-                            all_coupons_data.append({
-                                "歸屬帳號": acc["label"],
-                                "名稱": c_name,
-                                "到期日": c_date,
-                                "狀態": c_status
-                            })
+                            if name_elem and date_elem:
+                                c_name = name_elem.text.replace('\n', '').strip()
+                                c_date = date_elem.text.replace('\n', '').strip()
+                                c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
+                                
+                                all_coupons_data.append({
+                                    "歸屬帳號": acc["label"],
+                                    "名稱": c_name,
+                                    "到期日": c_date,
+                                    "狀態": c_status
+                                })
                     print(f"✅ 抓到 {len(coupon_items)} 張優惠卷！")
+                    
                 except Exception as e:
                     print(f"⚠️ 優惠卷抓取失敗: {e}")
+                    # 🌟 關鍵修復 2：如果發生 Timeout 等錯誤，也要回報給前端！
+                    all_coupons_data.append({
+                        "歸屬帳號": acc["label"],
+                        "名稱": "⚠️ 抓取失敗 (可能連線超時或被阻擋)",
+                        "到期日": "-",
+                        "狀態": "異常"
+                    })
 
             # ==========================================
             # 🌟 3. 任務分流：如果選擇抓取訂單，或兩者皆抓
