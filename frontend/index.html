@@ -53,32 +53,31 @@
         let summaryMessage = "";
         let isSummaryMode = false;
         
-        // 🌟 新增：計時器相關變數
         let timerInterval = null;
         let secondsElapsed = 0;
+        
+        // 🌟 新增一個變數，記錄剛剛使用者點了哪一顆按鈕
+        let currentAction = "both";
 
-        // 🌟 新增：啟動計時器函數
         function startTimer(baseMsg) {
             secondsElapsed = 0;
-            clearInterval(timerInterval); // 確保沒有舊的計時器在跑
+            clearInterval(timerInterval); 
             const resultDiv = document.getElementById('result');
             
-            // 立即顯示第 0 秒的狀態
             resultDiv.innerText = `${baseMsg} ⏱️ 已耗時: ${secondsElapsed} 秒`;
             
-            // 每 1000 毫秒 (1秒) 更新一次畫面
             timerInterval = setInterval(() => {
                 secondsElapsed++;
                 resultDiv.innerText = `${baseMsg} ⏱️ 已耗時: ${secondsElapsed} 秒`;
             }, 1000);
         }
 
-        // 🌟 新增：停止計時器函數
         function stopTimer() {
             clearInterval(timerInterval);
         }
 
         async function sendData(action) {
+            currentAction = action; // 記錄當下任務
             const backendUrl = `https://necojy-watsons-bot.hf.space/api/open_browser?action=${action}`;
             
             let waitMsg = "";
@@ -87,8 +86,6 @@
             else waitMsg = "機器人正在進行「全面抓取」，請稍候...";
 
             document.getElementById('result').style.color = "blue";
-            
-            // 🌟 呼叫啟動計時器
             startTimer(waitMsg);
             
             document.getElementById('searchDate').value = "";   
@@ -102,28 +99,24 @@
                 const response = await fetch(backendUrl);
                 const data = await response.json();
                 
-                // 🌟 資料抓回來了，立刻停止計時！
                 stopTimer();
                 
                 allOrders = data['詳細清單'] || [];
                 allCoupons = data['優惠卷清單'] || []; 
                 statsSummary = data['統計結果'] || [];
                 
-                // 把最終耗時加到成功的訊息後面
                 summaryMessage = (data.message || "") + ` (總耗時: ${secondsElapsed} 秒)`;
 
-                if (allOrders.length > 0 || allCoupons.length > 0) {
-                    if(allOrders.length > 0) {
-                        document.getElementById('control-panel').style.display = "inline-block";
-                    } else {
-                        document.getElementById('control-panel').style.display = "none";
-                    }
+                // 如果有抓到訂單，才顯示搜尋面板
+                if (allOrders.length > 0) {
+                    document.getElementById('control-panel').style.display = "inline-block";
+                } else {
+                    document.getElementById('control-panel').style.display = "none";
                 }
 
                 filterOrders(); 
 
             } catch (error) {
-                // 🌟 發生錯誤也要停止計時
                 stopTimer();
                 document.getElementById('result').style.color = "red";
                 document.getElementById('result').innerText = `連線失敗，請檢查網址或後端狀態 (在第 ${secondsElapsed} 秒時中斷)`;
@@ -164,11 +157,22 @@
             }
         }
 
+        // ==========================================
+        // 🌟 優惠卷顯示邏輯更新
+        // ==========================================
         function getCouponsHtml() {
-            if (allCoupons.length === 0) return "";
+            // 如果任務是「只抓訂單」，就完全隱藏優惠卷區塊
+            if (currentAction === 'orders') return "";
             
             let html = `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
             html += `<h3>🎟️ 目前可用優惠卷 (共抓取 ${allCoupons.length} 筆紀錄)</h3>`;
+            
+            // 🌟 關鍵修改：如果是 0 張，就顯示提示文字，而不是直接消失！
+            if (allCoupons.length === 0) {
+                html += `<p style="color: gray; font-size: 18px;">這個帳號目前沒有任何可用的優惠卷 😅</p>`;
+                return html;
+            }
+
             html += `<table><tr>
                         <th style="background-color: #fff3cd;">帳號</th>
                         <th style="background-color: #fff3cd;">優惠卷名稱 / 機器人視角</th>
@@ -196,9 +200,19 @@
             return html;
         }
 
+        // ==========================================
+        // 🌟 訂單顯示邏輯更新：避開與優惠卷打架
+        // ==========================================
         function renderDetailView(ordersToRender) {
             let htmlContent = getSummaryHtml(); 
             htmlContent += getCouponsHtml();
+
+            // 🌟 如果任務是「只抓優惠卷」，就不往下畫訂單表格了
+            if (currentAction === 'coupons') {
+                document.getElementById('result').style.color = "black";
+                document.getElementById('result').innerHTML = htmlContent;
+                return;
+            }
 
             if (ordersToRender.length > 0) {
                 htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
@@ -240,7 +254,9 @@
                 });
                 htmlContent += `</table>`;
             } else if (allOrders.length > 0) {
-                htmlContent += `<h3 style="color: orange; margin-top: 30px;">⚠️ 找不到符合條件的訂單</h3>`;
+                htmlContent += `<h3 style="color: orange; margin-top: 30px;">⚠️ 找不到符合搜尋條件的訂單</h3>`;
+            } else {
+                htmlContent += `<h3 style="color: orange; margin-top: 30px;">⚠️ 該帳號目前沒有任何門市消費紀錄</h3>`;
             }
 
             document.getElementById('result').style.color = "black";
@@ -250,6 +266,13 @@
         function renderSummaryView(ordersToRender) {
             let htmlContent = getSummaryHtml();
             htmlContent += getCouponsHtml();
+
+            // 🌟 如果任務是「只抓優惠卷」，就不往下畫統整表格了
+            if (currentAction === 'coupons') {
+                document.getElementById('result').style.color = "black";
+                document.getElementById('result').innerHTML = htmlContent;
+                return;
+            }
 
             if (ordersToRender.length === 0 && allOrders.length > 0) {
                 htmlContent += `<h3 style="color: orange; margin-top: 30px;">⚠️ 找不到符合條件的訂單</h3>`;
