@@ -28,17 +28,20 @@ app.add_middleware(
 def test_browser():
     accounts = []
     
+    # 🌟 1. 抓取第一組帳號 (加入自訂標籤 WATSONS_LABEL)
     u1 = os.getenv("WATSONS_USERNAME")
     p1 = os.getenv("WATSONS_PASSWORD")
-    l1 = os.getenv("WATSONS_LABEL", "帳號 1") 
+    l1 = os.getenv("WATSONS_LABEL", "帳號 1") # 如果沒設定名稱，就預設叫 "帳號 1"
     
     if u1 and p1:
         accounts.append({"user": u1, "pass": p1, "label": l1})
 
+    # 🌟 2. 抓取第 2 組 ~ 第 20 組帳號 (加入自訂標籤 WATSONS_LABEL_X)
     for i in range(2, 21):
         u = os.getenv(f"WATSONS_USERNAME_{i}")
         p = os.getenv(f"WATSONS_PASSWORD_{i}")
-        l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
+        l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") # 如果沒設定名稱，就預設叫 "帳號 i"
+        
         if u and p:
             accounts.append({"user": u, "pass": p, "label": l})
 
@@ -46,10 +49,10 @@ def test_browser():
         return {"message": "發生錯誤", "error": "找不到任何帳號或密碼，請檢查環境變數設定"}
 
     all_raw_data = []  
-    all_coupons_data = [] # 🌟 新增：用來存放所有帳號的優惠卷
     stats = defaultdict(lambda: defaultdict(int))
     error_screenshot = ""
 
+    # 開始迴圈處理
     for acc in accounts:
         driver = None
         temp_dir = tempfile.mkdtemp()
@@ -75,16 +78,13 @@ def test_browser():
             wait = WebDriverWait(driver, 20)
             driver.set_page_load_timeout(20)
 
-            # ==========================================
-            # 1. 登入與抓取訂單
-            # ==========================================
             try:
                 driver.get("https://www.watsons.com.tw/my-account/orders")
             except TimeoutException:
                 driver.execute_script("window.stop();")
             except Exception:
                 pass
-            time.sleep(3)
+            time.sleep(2)
     
             username_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")))
             username_input.clear()
@@ -97,14 +97,14 @@ def test_browser():
             time.sleep(1)
             
             password_input.send_keys(Keys.RETURN)
-            time.sleep(12) 
+            time.sleep(3) 
 
             store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
             driver.execute_script("arguments[0].click();", store_records_tab)
-            time.sleep(5) 
+            time.sleep(2) 
 
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-            time.sleep(3) 
+            time.sleep(2) 
 
             page_html = driver.page_source
             soup = BeautifulSoup(page_html, 'html.parser')
@@ -141,7 +141,7 @@ def test_browser():
                                 products.append({"商品名稱": p_name, "數量": p_qty})
 
                         all_raw_data.append({
-                            "歸屬帳號": acc["label"],
+                            "歸屬帳號": acc["label"],  # 🌟 這裡就會寫入你自訂的名稱
                             "日期": date_only,
                             "店名": store_name,
                             "金額": amount,
@@ -151,42 +151,11 @@ def test_browser():
                         })
                         stats[date_only][store_name] += 1
 
-            # ==========================================
-            # 🌟 2. 跳轉並抓取優惠卷 (新功能)
-            # ==========================================
-            print(f"🎟️ {acc['label']} 準備抓取優惠卷...")
-            try:
-                driver.get("https://www.watsons.com.tw/my-account/ecouponsEvouchers")
-                time.sleep(5) # 等待優惠卷載入
-                
-                coupon_html = driver.page_source
-                soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
-                coupon_items = soup_coupon.find_all('div', class_='coupon-item')
-                
-                for c in coupon_items:
-                    name_elem = c.find('div', class_='name')
-                    date_elem = c.find('div', class_='date')
-                    expiring_elem = c.find('span', class_='expiring')
-                    
-                    if name_elem and date_elem:
-                        c_name = name_elem.text.strip()
-                        c_date = date_elem.text.strip()
-                        c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
-                        
-                        all_coupons_data.append({
-                            "歸屬帳號": acc["label"],
-                            "名稱": c_name,
-                            "到期日": c_date,
-                            "狀態": c_status
-                        })
-                print(f"✅ {acc['label']} 抓取到 {len(coupon_items)} 張優惠卷")
-            except Exception as e:
-                print(f"⚠️ 抓取優惠卷失敗: {e}")
-
         except Exception as e:
             print(f"❌ {acc['label']} 發生錯誤跳過: {type(e).__name__} - {e}")
             if driver:
                 try:
+                    print(f"❌ 錯誤發生時的網址: {driver.current_url}")
                     error_screenshot = driver.get_screenshot_as_base64()
                 except:
                     pass
@@ -203,7 +172,7 @@ def test_browser():
             except:
                 pass
             print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
-            time.sleep(8)
+            time.sleep(6)
 
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
@@ -211,13 +180,12 @@ def test_browser():
         for store, count in stats[date].items():
             final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
 
-    if len(all_raw_data) == 0 and len(all_coupons_data) == 0 and error_screenshot:
+    if len(all_raw_data) == 0 and error_screenshot:
         return {"message": "所有帳號皆抓取失敗", "screenshot_base64": error_screenshot}
 
     return {
         "message": f"成功抓取 {len(accounts)} 組帳號的資料！",
         "資料總筆數": len(all_raw_data),
         "統計結果": final_summary,
-        "詳細清單": all_raw_data,
-        "優惠卷清單": all_coupons_data # 🌟 把優惠卷一併回傳給前端
+        "詳細清單": all_raw_data
     }

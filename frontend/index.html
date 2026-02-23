@@ -2,27 +2,25 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>屈臣氏訂單與優惠卷系統</title>
+    <title>屈臣氏訂單查詢系統</title>
     <style>
         body { font-family: sans-serif; text-align: center; padding: 20px; }
         .primary-btn { padding: 15px 30px; font-size: 18px; cursor: pointer; background-color: #0070f3; color: white; border: none; border-radius: 5px; }
         .summary-btn { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #28a745; color: white; border: none; border-radius: 5px; margin-left: 10px; transition: 0.3s; }
         .summary-btn.active { background-color: #ffc107; color: black; font-weight: bold; }
         
+        /* 搜尋框與控制列樣式 */
         #control-panel { margin-top: 20px; display: none; background-color: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #ddd; display: inline-block; }
         .search-input { padding: 10px; font-size: 16px; margin: 0 5px; border: 1px solid #ccc; border-radius: 4px; width: 180px; }
         
         #result { margin-top: 30px; }
         
+        /* 表格樣式 */
         table { width: 95%; margin: 20px auto; border-collapse: collapse; text-align: left; }
         th { background-color: #f2f2f2; padding: 12px; border: 1px solid #ddd; }
         td { padding: 12px; border: 1px solid #ddd; vertical-align: top; }
         .amount { color: #d9534f; font-weight: bold; }
         .total-qty { color: #d9534f; font-weight: bold; }
-        
-        /* 優惠卷專屬樣式 */
-        .coupon-warning { color: #d9534f; font-weight: bold; }
-        .coupon-normal { color: #28a745; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -41,22 +39,24 @@
 
     <script>
         let allOrders = []; 
-        let allCoupons = []; // 🌟 新增：存放所有優惠卷
         let statsSummary = [];
         let summaryMessage = "";
         let errorImage = "";
+        
+        // 🌟 新增一個變數，用來記住現在是不是「統整模式」
         let isSummaryMode = false;
 
         async function sendData() {
             const backendUrl = "https://necojy-watsons-bot.hf.space/api/open_browser";
             
             document.getElementById('result').style.color = "blue";
-            document.getElementById('result').innerText = "機器人正在雲端開啟網頁，包含雙帳號與優惠卷抓取，請稍候約 40~60 秒...";
+            document.getElementById('result').innerText = "機器人正在雲端開啟網頁，請稍候約 15~30 秒...";
             
             document.getElementById('searchDate').value = "";   
             document.getElementById('searchStore').value = "";  
             document.getElementById('control-panel').style.display = "none"; 
             
+            // 每次抓取新資料時，預設回到明細模式
             isSummaryMode = false; 
             updateToggleButtonUI();
 
@@ -65,16 +65,15 @@
                 const data = await response.json();
                 
                 allOrders = data['詳細清單'] || [];
-                allCoupons = data['優惠卷清單'] || []; // 🌟 接收後端傳來的優惠卷
                 statsSummary = data['統計結果'] || [];
                 summaryMessage = data.message || "";
                 errorImage = data.screenshot_base64 || "";
 
-                if (allOrders.length > 0 || allCoupons.length > 0) {
+                if (allOrders.length > 0) {
                     document.getElementById('control-panel').style.display = "inline-block";
                 }
 
-                filterOrders(); 
+                filterOrders(); // 抓完資料後執行一次過濾與渲染
 
             } catch (error) {
                 document.getElementById('result').style.color = "red";
@@ -82,12 +81,14 @@
             }
         }
 
+        // 🌟 切換模式的函數
         function toggleMode() {
-            isSummaryMode = !isSummaryMode; 
+            isSummaryMode = !isSummaryMode; // 反轉狀態
             updateToggleButtonUI();
-            filterOrders(); 
+            filterOrders(); // 切換模式後，用現在的搜尋條件重新畫表格
         }
 
+        // 🌟 更新按鈕外觀
         function updateToggleButtonUI() {
             const btn = document.getElementById('toggleModeBtn');
             if (isSummaryMode) {
@@ -99,6 +100,7 @@
             }
         }
 
+        // 🌟 過濾資料 (每次打字或切換按鈕都會跑到這裡)
         function filterOrders() {
             const dateKeyword = document.getElementById('searchDate').value.toLowerCase();
             const storeKeyword = document.getElementById('searchStore').value.toLowerCase();
@@ -109,6 +111,7 @@
                 return matchDate && matchStore; 
             });
 
+            // 🌟 判斷現在是什麼模式，就呼叫對應的畫圖函數！
             if (isSummaryMode) {
                 renderSummaryView(filteredData);
             } else {
@@ -117,42 +120,15 @@
         }
 
         // ==========================================
-        // 🌟 新增：專門用來畫「優惠卷表格」的函數
+        // 渲染函數 A：「明細模式」(新增帳號欄位)
         // ==========================================
-        function getCouponsHtml() {
-            if (allCoupons.length === 0) return "";
-            
-            let html = `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
-            html += `<h3>🎟️ 目前可用優惠卷 (共 ${allCoupons.length} 張)</h3>`;
-            html += `<table><tr>
-                        <th style="background-color: #fff3cd;">帳號</th>
-                        <th style="background-color: #fff3cd;">優惠卷名稱</th>
-                        <th style="background-color: #fff3cd;">到期日</th>
-                        <th style="background-color: #fff3cd;">狀態</th>
-                     </tr>`;
-
-            allCoupons.forEach(coupon => {
-                let statusClass = coupon['狀態'].includes("即將到期") ? "coupon-warning" : "coupon-normal";
-                html += `<tr>
-                            <td style="white-space: nowrap; font-weight: bold;">${coupon['歸屬帳號']}</td>
-                            <td>${coupon['名稱']}</td>
-                            <td style="white-space: nowrap;">${coupon['到期日']}</td>
-                            <td class="${statusClass}">${coupon['狀態']}</td>
-                         </tr>`;
-            });
-            html += `</table>`;
-            return html;
-        }
-
         function renderDetailView(ordersToRender) {
             let htmlContent = getSummaryHtml(); 
-            
-            // 🌟 在畫訂單之前，先把優惠卷表格塞進去！
-            htmlContent += getCouponsHtml();
 
             if (ordersToRender.length > 0) {
                 htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
                 htmlContent += `<h3>📜 訂單明細 (顯示 ${ordersToRender.length} 筆紀錄)</h3>`;
+                // 🌟 表頭新增「帳號」
                 htmlContent += `<table><tr>
                                     <th style="background-color: #e9ecef;">帳號</th>
                                     <th>日期</th>
@@ -197,11 +173,11 @@
             document.getElementById('result').innerHTML = htmlContent;
         }
 
+        // ==========================================
+        // 🌟 渲染函數 B：全新的「統整模式」！
+        // ==========================================
         function renderSummaryView(ordersToRender) {
             let htmlContent = getSummaryHtml();
-            
-            // 🌟 統整模式下，一樣把優惠卷印出來
-            htmlContent += getCouponsHtml();
 
             if (ordersToRender.length === 0 && allOrders.length > 0) {
                 htmlContent += `<h3 style="color: orange; margin-top: 30px;">⚠️ 找不到符合條件的訂單</h3>`;
@@ -209,37 +185,49 @@
                 return;
             }
 
+            // 1. 建立樞紐分析字典
             const groupedData = {};
 
             ordersToRender.forEach(order => {
+                // 用 日期 + 店名 當作群組的鑰匙
                 const key = `${order['日期']}_${order['店名']}`;
+                
                 if (!groupedData[key]) {
-                    groupedData[key] = { date: order['日期'], store: order['店名'], items: {} };
+                    groupedData[key] = {
+                        date: order['日期'],
+                        store: order['店名'],
+                        items: {} // 用來記錄商品名稱與總數量
+                    };
                 }
 
+                // 2. 把商品加進群組裡
                 if (order['購買商品清單'] && order['購買商品清單'].length > 0) {
                     order['購買商品清單'].forEach(prod => {
                         const name = prod['商品名稱'];
+                        // 🌟 魔法：把 "數量: 3" 裡面的數字 3 用正規表達式抓出來轉成整數
                         const qtyMatch = prod['數量'].match(/\d+/);
                         const qty = qtyMatch ? parseInt(qtyMatch[0], 10) : 0;
 
                         if (!groupedData[key].items[name]) {
                             groupedData[key].items[name] = 0;
                         }
+                        // 累加數量！
                         groupedData[key].items[name] += qty;
                     });
                 }
             });
 
+            // 3. 把算好的資料畫成表格
             htmlContent += `<hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">`;
             htmlContent += `<h3>📦 總數合併清單 (自動將同日、同店、同品項加總)</h3>`;
             htmlContent += `<table><tr><th>日期</th><th>店名</th><th>📦 合併購買商品總計</th></tr>`;
 
+            // 跑迴圈把 groupedData 裡面的東西印出來
             for (let key in groupedData) {
                 const group = groupedData[key];
                 let productsHtml = "<ul style='padding-left: 20px; margin: 0; text-align: left;'>";
-                const itemNames = Object.keys(group.items);
                 
+                const itemNames = Object.keys(group.items);
                 if (itemNames.length > 0) {
                     itemNames.forEach(name => {
                         productsHtml += `<li style="margin-bottom: 5px;">
@@ -258,11 +246,13 @@
                                     <td>${productsHtml}</td>
                                 </tr>`;
             }
+
             htmlContent += `</table>`;
             document.getElementById('result').style.color = "black";
             document.getElementById('result').innerHTML = htmlContent;
         }
 
+        // 共用的上方摘要區塊產生器
         function getSummaryHtml() {
             let html = "";
             if (statsSummary.length > 0) {
