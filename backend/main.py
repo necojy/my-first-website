@@ -158,24 +158,14 @@ def test_browser():
             try:
                 # 🛡️ 根據你找到的 HTML，精準鎖定 a 標籤的 href 屬性！
                 try:
-                    coupon_tab = wait.until(
-                        EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
-                    )
-                    # 使用 JavaScript 強制點擊，無視任何蓋版廣告
-                    driver.execute_script("arguments[0].click();", coupon_tab)
+                    driver.get("https://www.watsons.com.tw/my-account/orders")
                     print(f"👉 成功點擊「折價券/提貨券」選單，等待畫面載入...")
                 except TimeoutException:
                     print(f"⚠️ {acc['label']} 找不到左側的折價券按鈕...")
                 
                 time.sleep(6) # 乖乖等 6 秒讓畫面順滑切換過去
                 
-                # 🌟 等待優惠卷的大容器出現
-                try:
-                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
-                    time.sleep(2) 
-                except TimeoutException:
-                    print(f"⚠️ {acc['label']} 等不到優惠卷主容器...")
-                    pass
+                
 
                 coupon_html = driver.page_source
                 soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
