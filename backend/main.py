@@ -84,7 +84,7 @@ def test_browser():
                 driver.execute_script("window.stop();")
             except Exception:
                 pass
-            time.sleep(3)
+            time.sleep(2)
     
             username_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")))
             username_input.clear()
@@ -97,11 +97,11 @@ def test_browser():
             time.sleep(1)
             
             password_input.send_keys(Keys.RETURN)
-            time.sleep(6) 
+            time.sleep(3) 
 
             store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
             driver.execute_script("arguments[0].click();", store_records_tab)
-            time.sleep(3) 
+            time.sleep(2) 
 
             wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
             time.sleep(2) 
@@ -172,7 +172,7 @@ def test_browser():
             except:
                 pass
             print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
-            time.sleep(5)
+            time.sleep(4)
 
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
