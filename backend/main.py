@@ -239,31 +239,43 @@ def test_browser(action: str = "both"):
                 except: pass
         
         # 🌟 如果 2 次機會都用光了還是失敗，在前端顯示陣亡通報
+        # 🌟 如果 2 次機會都用光了還是失敗，啟動「緊急煞車機制」
         if not is_success:
-            print(f"💀 {acc['label']} 連續 2 次嘗試皆失敗，強制略過此帳號。")
-            if action in ["orders", "both"]:
-                all_raw_data.append({
-                    "歸屬帳號": acc["label"], "日期": "-", "店名": "登入超時或被阻擋", 
-                    "金額": "-", "獲得點數": "-", "使用點數": "-", "購買商品清單": []
-                })
-            if action in ["coupons", "both"]:
-                if not any(c.get("歸屬帳號") == acc["label"] for c in all_coupons_data):
-                    all_coupons_data.append({
-                        "歸屬帳號": acc["label"], "名稱": "💀 登入失敗 (可能被防護機制阻擋)", 
-                        "到期日": "-", "狀態": "異常"
-                    })
+            print(f"💀 {acc['label']} 連續 2 次嘗試皆失敗，觸發防護機制，停止後續抓取！")
+            
+            # 📸 案發現場拍照：看看是不是真的被 Cloudflare 擋住了
+            if driver:
+                try:
+                    error_screenshot = driver.get_screenshot_as_base64()
+                except:
+                    pass
+            
+            # 🌟 改變策略：不再略過塞假資料，而是直接中斷整個任務，保留前面成功的紀錄
+            error_message = f"⚠️ 在處理「{acc['label']}」時被防火牆阻擋。為保護 IP，已緊急停止任務。請休息 5~10 分鐘後再重新執行。"
+            
+            # 🌟 關鍵：打破外層的 for acc in accounts 迴圈，不跑後面的帳號了
+            break 
 
-        print(f"💤 {acc['label']} 處理完畢，機器人休息 5 秒鐘...")
-        time.sleep(5)
+        print(f"💤 {acc['label']} 處理完畢，機器人休息 10 秒鐘...")
+        time.sleep(10) # 稍微加長帳號之間的正常休息時間，降低被擋機率
 
+    # ==================================
+    # 迴圈結束 (可能是順利跑完，也可能是被中斷)
+    # ==================================
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
     for date in sorted_dates:
         for store, count in stats[date].items():
             final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
 
+    # 判斷是否有錯誤訊息要回傳
+    final_message = f"成功執行任務！(目標: {action})"
+    if not is_success: # 如果是因為被阻擋而跳出迴圈的
+        final_message = error_message
+
     return {
-        "message": f"成功執行任務！(目標: {action})",
+        "message": final_message,
+        "screenshot_base64": error_screenshot, # 把被擋住的照片傳給前端
         "資料總筆數": len(all_raw_data),
         "統計結果": final_summary,
         "詳細清單": all_raw_data,
