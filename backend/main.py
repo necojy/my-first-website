@@ -49,13 +49,11 @@ def test_browser(action: str = "both"):
     all_coupons_data = [] 
     stats = defaultdict(lambda: defaultdict(int))
     
-    # 🌟 關鍵修復：在迴圈開始前，先宣告錯誤截圖的變數為空字串！
     error_screenshot = ""
 
     for acc in accounts:
         is_success = False
 
-        # 🌟 護身符機制：給每個帳號最多 2 次嘗試機會
         for attempt in range(2):
             driver = None
             temp_dir = tempfile.mkdtemp()
@@ -81,9 +79,6 @@ def test_browser(action: str = "both"):
                 wait = WebDriverWait(driver, 25) 
                 driver.set_page_load_timeout(25)
 
-                # ==========================================
-                # 1. 共用登入流程
-                # ==========================================
                 try:
                     driver.get("https://www.watsons.com.tw/my-account/orders")
                 except TimeoutException:
@@ -105,9 +100,6 @@ def test_browser(action: str = "both"):
                 password_input.send_keys(Keys.RETURN)
                 time.sleep(8) 
                 
-                # ==========================================
-                # 🌟 2. 任務分流：抓取優惠卷
-                # ==========================================
                 if action in ["coupons", "both"]:
                     print(f"🎟️ {acc['label']} 開始抓取優惠卷...")
                     try:
@@ -162,9 +154,6 @@ def test_browser(action: str = "both"):
                             "狀態": "異常"
                         })
 
-                # ==========================================
-                # 🌟 3. 任務分流：抓取門市訂單
-                # ==========================================
                 if action in ["orders", "both"]:
                     print(f"📦 {acc['label']} 開始抓取門市訂單...")
                     try:
@@ -235,25 +224,29 @@ def test_browser(action: str = "both"):
 
             except Exception as e:
                 print(f"❌ {acc['label']} 第 {attempt + 1} 次登入發生錯誤: {type(e).__name__}")
+                
+                # 🌟 【關鍵修復】：在 finally 關掉瀏覽器之前，趕緊拍下最後遺照！
+                # 只有當這是第 2 次嘗試也失敗時，才拍照存證
+                if attempt == 1 and driver:
+                    try: 
+                        error_screenshot = driver.get_screenshot_as_base64()
+                    except: 
+                        pass
+                        
                 time.sleep(3) 
                 
             finally:
                 if driver:
-                    try: driver.quit()
+                    try: driver.quit() # ⚠️ 這裡瀏覽器就被銷毀了
                     except: pass
                 try: shutil.rmtree(temp_dir, ignore_errors=True)
                 except: pass
         
         # ==========================================
-        # 🌟 緊急煞車與拍照系統
+        # 🌟 緊急煞車系統
         # ==========================================
         if not is_success:
             print(f"💀 {acc['label']} 連續 2 次嘗試皆失敗，觸發防護機制，停止後續抓取！")
-            
-            # 如果真的被擋，把當時畫面拍下來送給前端
-            if driver:
-                try: error_screenshot = driver.get_screenshot_as_base64()
-                except: pass
             
             error_message = f"⚠️ 在處理「{acc['label']}」時被防火牆阻擋。為保護 IP，已緊急停止任務。請休息 5~10 分鐘後再重新執行。"
             
@@ -277,7 +270,7 @@ def test_browser(action: str = "both"):
 
     return {
         "message": final_message,
-        "screenshot_base64": error_screenshot, 
+        "screenshot_base64": error_screenshot, # 這裡就會成功包裝剛剛拍好的照片傳給前端了
         "資料總筆數": len(all_raw_data),
         "統計結果": final_summary,
         "詳細清單": all_raw_data,
