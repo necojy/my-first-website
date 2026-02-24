@@ -27,8 +27,15 @@ app.add_middleware(
 @app.get("/api/open_browser")
 def test_browser(action: str = "both"):
     accounts = []
+    
+    u1 = os.getenv("WATSONS_USERNAME")
+    p1 = os.getenv("WATSONS_PASSWORD")
+    l1 = os.getenv("WATSONS_LABEL", "帳號 1") 
+    
+    if u1 and p1:
+        accounts.append({"user": u1, "pass": p1, "label": l1})
 
-    for i in range(1, 4):
+    for i in range(2, 8):
         u = os.getenv(f"WATSONS_USERNAME_{i}")
         p = os.getenv(f"WATSONS_PASSWORD_{i}")
         l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
@@ -41,11 +48,14 @@ def test_browser(action: str = "both"):
     all_raw_data = []  
     all_coupons_data = [] 
     stats = defaultdict(lambda: defaultdict(int))
+    
+    # 🌟 關鍵修復：在迴圈開始前，先宣告錯誤截圖的變數為空字串！
+    error_screenshot = ""
 
     for acc in accounts:
-        is_success = False # 🌟 紀錄是否成功
+        is_success = False
 
-        # 🌟 護身符機制：給每個帳號最多 2 次嘗試機會！
+        # 🌟 護身符機制：給每個帳號最多 2 次嘗試機會
         for attempt in range(2):
             driver = None
             temp_dir = tempfile.mkdtemp()
@@ -68,7 +78,6 @@ def test_browser(action: str = "both"):
                 options.add_argument(f"--user-data-dir={temp_dir}")
                 
                 driver = uc.Chrome(options=options)
-                # 這裡的 wait 等待時間可以設長一點 (25秒)，給雲端多一點緩衝
                 wait = WebDriverWait(driver, 25) 
                 driver.set_page_load_timeout(25)
 
@@ -83,7 +92,6 @@ def test_browser(action: str = "both"):
                     pass
                 time.sleep(3)
         
-                # 🌟 如果被防火牆擋住，通常這裡就會發生 TimeoutException 並跳到下面的 except 區塊重試
                 username_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")))
                 username_input.clear()
                 username_input.send_keys(acc["user"]) 
@@ -95,7 +103,7 @@ def test_browser(action: str = "both"):
                 time.sleep(1)
                 
                 password_input.send_keys(Keys.RETURN)
-                time.sleep(8) # 登入後等待跳轉即可，不用等到 10 秒
+                time.sleep(8) 
                 
                 # ==========================================
                 # 🌟 2. 任務分流：抓取優惠卷
@@ -222,12 +230,10 @@ def test_browser(action: str = "both"):
                     except Exception as e:
                         print(f"⚠️ 訂單抓取失敗: {e}")
 
-                # 🌟 如果程式順利走到這裡，代表成功，跳出重試迴圈！
                 is_success = True
                 break 
 
             except Exception as e:
-                # 🌟 如果發生 TimeoutException，就會跑到這裡，準備下一次重試
                 print(f"❌ {acc['label']} 第 {attempt + 1} 次登入發生錯誤: {type(e).__name__}")
                 time.sleep(3) 
                 
@@ -238,44 +244,40 @@ def test_browser(action: str = "both"):
                 try: shutil.rmtree(temp_dir, ignore_errors=True)
                 except: pass
         
-        # 🌟 如果 2 次機會都用光了還是失敗，在前端顯示陣亡通報
-        # 🌟 如果 2 次機會都用光了還是失敗，啟動「緊急煞車機制」
+        # ==========================================
+        # 🌟 緊急煞車與拍照系統
+        # ==========================================
         if not is_success:
             print(f"💀 {acc['label']} 連續 2 次嘗試皆失敗，觸發防護機制，停止後續抓取！")
             
-            # 📸 案發現場拍照：看看是不是真的被 Cloudflare 擋住了
+            # 如果真的被擋，把當時畫面拍下來送給前端
             if driver:
-                try:
-                    error_screenshot = driver.get_screenshot_as_base64()
-                except:
-                    pass
+                try: error_screenshot = driver.get_screenshot_as_base64()
+                except: pass
             
-            # 🌟 改變策略：不再略過塞假資料，而是直接中斷整個任務，保留前面成功的紀錄
             error_message = f"⚠️ 在處理「{acc['label']}」時被防火牆阻擋。為保護 IP，已緊急停止任務。請休息 5~10 分鐘後再重新執行。"
             
-            # 🌟 關鍵：打破外層的 for acc in accounts 迴圈，不跑後面的帳號了
+            # 打破迴圈，提早下班
             break 
 
         print(f"💤 {acc['label']} 處理完畢，機器人休息 10 秒鐘...")
-        time.sleep(10) # 稍微加長帳號之間的正常休息時間，降低被擋機率
+        time.sleep(10)
 
-    # ==================================
-    # 迴圈結束 (可能是順利跑完，也可能是被中斷)
-    # ==================================
+    # 整理最終統計
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
     for date in sorted_dates:
         for store, count in stats[date].items():
             final_summary.append(f"{date} 在 {store} 共有 {count} 筆消費")
 
-    # 判斷是否有錯誤訊息要回傳
+    # 判斷是否要回報錯誤訊息
     final_message = f"成功執行任務！(目標: {action})"
-    if not is_success: # 如果是因為被阻擋而跳出迴圈的
+    if not is_success: 
         final_message = error_message
 
     return {
         "message": final_message,
-        "screenshot_base64": error_screenshot, # 把被擋住的照片傳給前端
+        "screenshot_base64": error_screenshot, 
         "資料總筆數": len(all_raw_data),
         "統計結果": final_summary,
         "詳細清單": all_raw_data,
