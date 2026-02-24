@@ -52,7 +52,8 @@
         let statsSummary = [];
         let summaryMessage = "";
         let isSummaryMode = false;
-        
+        let errorImage = ""; // 🌟 加回這個變數
+
         let timerInterval = null;
         let secondsElapsed = 0;
         
@@ -104,7 +105,9 @@
                 allOrders = data['詳細清單'] || [];
                 allCoupons = data['優惠卷清單'] || []; 
                 statsSummary = data['統計結果'] || [];
-                
+                errorImage = data['screenshot_base64'] || ""; // 🌟 接住後端傳來的案發現場照片
+
+
                 summaryMessage = (data.message || "") + ` (總耗時: ${secondsElapsed} 秒)`;
 
                 // 如果有抓到訂單，才顯示搜尋面板
@@ -339,8 +342,17 @@
         function getSummaryHtml() {
             let html = "";
             if (summaryMessage) {
-                html += `<h2 style="color: green;">${summaryMessage}</h2>`;
+                // 🌟 如果文字裡面有警告符號，就變成紅色；否則就是成功的綠色
+                let titleColor = summaryMessage.includes("⚠️") ? "#d9534f" : "green";
+                html += `<h2 style="color: ${titleColor};">${summaryMessage}</h2>`;
             }
+            
+            // 🌟 如果後端有傳回被擋住的截圖，就把它印出來讓我們看看到底長怎樣！
+            if (errorImage) {
+                html += `<br><h3 style="color:#d9534f;">🤖 機器人最後視角 (被擋住的畫面)：</h3>`;
+                html += `<img src="data:image/png;base64,${errorImage}" style="max-width: 100%; border: 3px solid #d9534f; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>`;
+            }
+            
             return html;
         }
     </script>
