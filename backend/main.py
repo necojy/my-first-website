@@ -29,7 +29,7 @@ app.add_middleware(
 def test_browser(action: str = "both"):
     accounts = []
 
-    for i in range(1, 3):
+    for i in range(1, 4):
         u = os.getenv(f"WATSONS_USERNAME_{i}")
         p = os.getenv(f"WATSONS_PASSWORD_{i}")
         l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
