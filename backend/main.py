@@ -78,20 +78,20 @@ def test_browser(action: str = "both"):
                 driver.execute_script("window.stop();")
             except Exception:
                 pass
-            time.sleep(10)
+            time.sleep(2)
     
             username_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@placeholder='會員卡號/電子郵件信箱/手機號碼']")))
             username_input.clear()
             username_input.send_keys(acc["user"]) 
-            time.sleep(10)
+            time.sleep(2)
 
             password_input = wait.until(EC.element_to_be_clickable((By.XPATH, "//input[@type='password']")))
             password_input.clear()
             password_input.send_keys(acc["pass"]) 
-            time.sleep(10)
+            time.sleep(2)
             
             password_input.send_keys(Keys.RETURN)
-            time.sleep(12) 
+            time.sleep(6) 
             # ==========================================
             # 🌟 2. 任務分流：如果選擇抓取優惠卷，或兩者皆抓
             # ==========================================
@@ -102,11 +102,11 @@ def test_browser(action: str = "both"):
                         EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
                     )
                     driver.execute_script("arguments[0].click();", coupon_tab)
-                    time.sleep(10) 
+                    time.sleep(2) 
                     
                     try:
                         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
-                        time.sleep(10) 
+                        time.sleep(2) 
                     except:
                         pass
 
@@ -163,14 +163,14 @@ def test_browser(action: str = "both"):
                             EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/orders')]"))
                         )
                         driver.execute_script("arguments[0].click();", orders_menu)
-                        time.sleep(10)
+                        time.sleep(2)
 
                     store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
                     driver.execute_script("arguments[0].click();", store_records_tab)
-                    time.sleep(10) 
+                    time.sleep(2) 
 
                     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-                    time.sleep(10) 
+                    time.sleep(4) 
 
                     page_html = driver.page_source
                     soup = BeautifulSoup(page_html, 'html.parser')
@@ -234,7 +234,7 @@ def test_browser(action: str = "both"):
             try: shutil.rmtree(temp_dir, ignore_errors=True)
             except: pass
             print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
-            time.sleep(12)
+            time.sleep(8)
 
     final_summary = []
     sorted_dates = sorted(stats.keys(), reverse=True)
