@@ -35,7 +35,7 @@ def test_browser(action: str = "both"):
     if u1 and p1:
         accounts.append({"user": u1, "pass": p1, "label": l1})
 
-    for i in range(2, 8):
+    for i in range(2, 21):
         u = os.getenv(f"WATSONS_USERNAME_{i}")
         p = os.getenv(f"WATSONS_PASSWORD_{i}")
         l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
@@ -50,12 +50,16 @@ def test_browser(action: str = "both"):
     stats = defaultdict(lambda: defaultdict(int))
 
     for acc in accounts:
-        is_success = False # 🌟 新增：用來記錄這個帳號是否成功完成任務
+        is_success = False 
 
-        # 🌟 護身符機制：每個帳號最多給它 2 次機會！
         for attempt in range(2):
             driver = None
             temp_dir = tempfile.mkdtemp()
+            
+            # 🌟 建立專屬這一次嘗試的「暫存購物籃」，失敗了就丟掉，不會重複！
+            temp_orders = []
+            temp_coupons = []
+            temp_stats = defaultdict(lambda: defaultdict(int))
             
             try:
                 print(f"🚀 啟動瀏覽器，準備處理: {acc['label']} (任務: {action}) [第 {attempt + 1} 次嘗試]")
@@ -75,7 +79,6 @@ def test_browser(action: str = "both"):
                 options.add_argument(f"--user-data-dir={temp_dir}")
                 
                 driver = uc.Chrome(options=options)
-                # 🌟 把等待時間稍微拉長到 25 秒，給雲端主機多一點喘息空間
                 wait = WebDriverWait(driver, 25) 
                 driver.set_page_load_timeout(25)
 
@@ -101,140 +104,136 @@ def test_browser(action: str = "both"):
                 time.sleep(1)
                 
                 password_input.send_keys(Keys.RETURN)
-                time.sleep(6) 
+                time.sleep(8) # 登入後多等一下，避開防護機制
 
                 # ==========================================
                 # 🌟 2. 任務分流：抓取優惠卷
                 # ==========================================
                 if action in ["coupons", "both"]:
                     print(f"🎟️ {acc['label']} 開始抓取優惠卷...")
+                    # 如果找不到按鈕會直接觸發 TimeoutException，丟給最外層進行重試！
+                    coupon_tab = wait.until(
+                        EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
+                    )
+                    driver.execute_script("arguments[0].click();", coupon_tab)
+                    time.sleep(5) 
+                    
                     try:
-                        coupon_tab = wait.until(
-                            EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/ecouponsEvouchers')]"))
-                        )
-                        driver.execute_script("arguments[0].click();", coupon_tab)
-                        time.sleep(4) 
-                        
-                        try:
-                            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
-                            time.sleep(2) 
-                        except:
-                            pass
+                        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "e2-my-account-current-coupon")))
+                        time.sleep(2) 
+                    except:
+                        pass # 有可能 0 張，所以沒大容器是正常的，放行
 
-                        coupon_html = driver.page_source
-                        soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
-                        coupon_items = soup_coupon.find_all('div', class_='coupon-item')
-                        
-                        if len(coupon_items) == 0:
-                            all_coupons_data.append({
-                                "歸屬帳號": acc["label"],
-                                "名稱": "沒有可用的優惠卷 😅",
-                                "到期日": "-",
-                                "狀態": "無紀錄"
-                            })
-                        else:
-                            for c in coupon_items:
-                                name_elem = c.find('div', class_='name')
-                                date_elem = c.find('div', class_='date')
-                                expiring_elem = c.find('span', class_='expiring')
-                                
-                                if name_elem and date_elem:
-                                    c_name = name_elem.text.replace('\n', '').strip()
-                                    c_date = date_elem.text.replace('\n', '').strip()
-                                    c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
-                                    
-                                    all_coupons_data.append({
-                                        "歸屬帳號": acc["label"],
-                                        "名稱": c_name,
-                                        "到期日": c_date,
-                                        "狀態": c_status
-                                    })
-                        print(f"✅ 抓到 {len(coupon_items)} 張優惠卷！")
-                        
-                    except Exception as e:
-                        print(f"⚠️ 優惠卷抓取失敗: {e}")
-                        all_coupons_data.append({
+                    coupon_html = driver.page_source
+                    soup_coupon = BeautifulSoup(coupon_html, 'html.parser')
+                    coupon_items = soup_coupon.find_all('div', class_='coupon-item')
+                    
+                    if len(coupon_items) == 0:
+                        temp_coupons.append({
                             "歸屬帳號": acc["label"],
-                            "名稱": "⚠️ 抓取失敗 (可能連線超時或被阻擋)",
+                            "名稱": "沒有可用的優惠卷 😅",
                             "到期日": "-",
-                            "狀態": "異常"
+                            "狀態": "無紀錄"
                         })
+                    else:
+                        for c in coupon_items:
+                            name_elem = c.find('div', class_='name')
+                            date_elem = c.find('div', class_='date')
+                            expiring_elem = c.find('span', class_='expiring')
+                            
+                            if name_elem and date_elem:
+                                c_name = name_elem.text.replace('\n', '').strip()
+                                c_date = date_elem.text.replace('\n', '').strip()
+                                c_status = "⚠️ 即將到期" if expiring_elem else "✅ 正常"
+                                
+                                temp_coupons.append({
+                                    "歸屬帳號": acc["label"],
+                                    "名稱": c_name,
+                                    "到期日": c_date,
+                                    "狀態": c_status
+                                })
+                    print(f"✅ 抓到 {len(coupon_items)} 張優惠卷！")
 
                 # ==========================================
                 # 🌟 3. 任務分流：抓取門市訂單
                 # ==========================================
                 if action in ["orders", "both"]:
                     print(f"📦 {acc['label']} 開始抓取門市訂單...")
-                    try:
-                        if action == "both":
-                            orders_menu = wait.until(
-                                EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/orders')]"))
-                            )
-                            driver.execute_script("arguments[0].click();", orders_menu)
-                            time.sleep(4)
+                    if action == "both":
+                        orders_menu = wait.until(
+                            EC.presence_of_element_located((By.XPATH, "//a[contains(@href, '/my-account/orders')]"))
+                        )
+                        driver.execute_script("arguments[0].click();", orders_menu)
+                        time.sleep(4)
 
-                        store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
-                        driver.execute_script("arguments[0].click();", store_records_tab)
-                        time.sleep(3) 
+                    # 這裡如果逾時，就會直接觸發重試！
+                    store_records_tab = wait.until(EC.presence_of_element_located((By.XPATH, "//li[contains(@class,'nav-item') and contains(.,'門市交易紀錄')]")))
+                    driver.execute_script("arguments[0].click();", store_records_tab)
+                    time.sleep(3) 
 
-                        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
-                        time.sleep(2) 
+                    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.orders-containers")))
+                    time.sleep(2) 
 
-                        page_html = driver.page_source
-                        soup = BeautifulSoup(page_html, 'html.parser')
-                        items = soup.find_all('e2-my-account-order-history-item')
+                    page_html = driver.page_source
+                    soup = BeautifulSoup(page_html, 'html.parser')
+                    items = soup.find_all('e2-my-account-order-history-item')
 
-                        for item in items:
-                            data_ul = item.find('ul', class_='desktop-order-data')
-                            if not data_ul:
-                                data_ul = item.find('ul', class_='data')
+                    for item in items:
+                        data_ul = item.find('ul', class_='desktop-order-data')
+                        if not data_ul:
+                            data_ul = item.find('ul', class_='data')
 
-                            if data_ul:
-                                lis = data_ul.find_all('li')
-                                if len(lis) >= 5:
-                                    full_date_str = lis[0].text.strip()
-                                    store_name = lis[1].text.strip()
-                                    amount = lis[2].text.strip()
-                                    points_earned = lis[3].text.strip()
-                                    points_used = lis[4].text.strip()
+                        if data_ul:
+                            lis = data_ul.find_all('li')
+                            if len(lis) >= 5:
+                                full_date_str = lis[0].text.strip()
+                                store_name = lis[1].text.strip()
+                                amount = lis[2].text.strip()
+                                points_earned = lis[3].text.strip()
+                                points_used = lis[4].text.strip()
 
-                                    if not full_date_str: continue
-                                    date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
+                                if not full_date_str: continue
+                                date_only = full_date_str.split(" ")[0] if " " in full_date_str else full_date_str
 
-                                    products = []
-                                    detail_blocks = item.find_all('div', class_='order-details')
+                                products = []
+                                detail_blocks = item.find_all('div', class_='order-details')
+                                
+                                for block in detail_blocks:
+                                    name_elem = block.find('div', class_='product-name')
+                                    qty_elem = block.find('div', class_='product-quantity')
                                     
-                                    for block in detail_blocks:
-                                        name_elem = block.find('div', class_='product-name')
-                                        qty_elem = block.find('div', class_='product-quantity')
-                                        
-                                        if name_elem and qty_elem:
-                                            p_name = name_elem.text.replace('\n', '').strip()
-                                            p_name = ' '.join(p_name.split()) 
-                                            p_qty = qty_elem.text.strip()
-                                            products.append({"商品名稱": p_name, "數量": p_qty})
+                                    if name_elem and qty_elem:
+                                        p_name = name_elem.text.replace('\n', '').strip()
+                                        p_name = ' '.join(p_name.split()) 
+                                        p_qty = qty_elem.text.strip()
+                                        products.append({"商品名稱": p_name, "數量": p_qty})
 
-                                    all_raw_data.append({
-                                        "歸屬帳號": acc["label"], 
-                                        "日期": date_only,
-                                        "店名": store_name,
-                                        "金額": amount,
-                                        "獲得點數": points_earned,
-                                        "使用點數": points_used,
-                                        "購買商品清單": products
-                                    })
-                                    stats[date_only][store_name] += 1
-                        print(f"✅ 訂單抓取完畢！")
-                    except Exception as e:
-                        print(f"⚠️ 訂單抓取失敗: {e}")
+                                temp_orders.append({
+                                    "歸屬帳號": acc["label"], 
+                                    "日期": date_only,
+                                    "店名": store_name,
+                                    "金額": amount,
+                                    "獲得點數": points_earned,
+                                    "使用點數": points_used,
+                                    "購買商品清單": products
+                                })
+                                temp_stats[date_only][store_name] += 1
+                    print(f"✅ 訂單抓取完畢！")
 
-                # 🌟 如果程式順利走到這裡沒有報錯，就標記成功，並跳出重試迴圈！
+                # 🌟 如果程式順利走到最後一行沒有報錯，我們才把「暫存購物籃」的東西倒進「總清單」！
+                all_raw_data.extend(temp_orders)
+                all_coupons_data.extend(temp_coupons)
+                for d, stores in temp_stats.items():
+                    for s, c in stores.items():
+                        stats[d][s] += c
+                        
                 is_success = True
-                break 
+                break # 🌟 成功了！跳出重試迴圈！
 
             except Exception as e:
+                # 💥 如果中途發生任何錯誤（包括找不到訂單按鈕），就會跑到這裡，然後重啟第 2 次嘗試！
                 print(f"❌ {acc['label']} 第 {attempt + 1} 次發生錯誤跳過: {type(e).__name__}")
-                time.sleep(3) # 失敗的話，休息 3 秒再進行下一次重試
+                time.sleep(3) 
                 
             finally:
                 if driver:
@@ -252,12 +251,10 @@ def test_browser(action: str = "both"):
                     "金額": "-", "獲得點數": "-", "使用點數": "-", "購買商品清單": []
                 })
             if action in ["coupons", "both"]:
-                # 確保就算兩次都失敗，前端依然會收到這個帳號的錯誤狀態，不會人間蒸發
-                if not any(c.get("歸屬帳號") == acc["label"] for c in all_coupons_data):
-                    all_coupons_data.append({
-                        "歸屬帳號": acc["label"], "名稱": "💀 連續登入失敗 (被防護機制阻擋)", 
-                        "到期日": "-", "狀態": "異常"
-                    })
+                all_coupons_data.append({
+                    "歸屬帳號": acc["label"], "名稱": "💀 連續登入失敗 (被防護機制阻擋)", 
+                    "到期日": "-", "狀態": "異常"
+                })
 
         print(f"💤 {acc['label']} 處理完畢，機器人休息 8 秒鐘...")
         time.sleep(8)
