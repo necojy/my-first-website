@@ -27,15 +27,8 @@ app.add_middleware(
 @app.get("/api/open_browser")
 def test_browser(action: str = "both"):
     accounts = []
-    
-    u1 = os.getenv("WATSONS_USERNAME")
-    p1 = os.getenv("WATSONS_PASSWORD")
-    l1 = os.getenv("WATSONS_LABEL", "帳號 1") 
-    
-    if u1 and p1:
-        accounts.append({"user": u1, "pass": p1, "label": l1})
 
-    for i in range(2, 8):
+    for i in range(1, 3):
         u = os.getenv(f"WATSONS_USERNAME_{i}")
         p = os.getenv(f"WATSONS_PASSWORD_{i}")
         l = os.getenv(f"WATSONS_LABEL_{i}", f"帳號 {i}") 
